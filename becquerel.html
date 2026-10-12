@@ -1,0 +1,677 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laboratorio Imposible — Becquerel</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<style>
+:root{--bg:#101820;--panel:#17232d;--line:#42515c;--gold:#e4bd70;--text:#f3f4ef}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% 0,#263744,#0d1319 70%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+#page{width:min(1400px,98vw);margin:12px auto 24px}
+#escenario{position:relative;isolation:isolate;width:min(100%,calc((100dvh - 245px)*16/9));margin:0 auto;user-select:none;-webkit-user-select:none}
+#escenario,#escenario *{cursor:default!important}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin:0 0 12px}
+.hdr-btns{display:flex;flex-direction:column;gap:8px}
+#reset,#pass,#volver{width:230px;height:36px;padding:0 8px;font-size:13px;display:flex;align-items:center;justify-content:center;text-align:center}
+.legend{justify-self:end;max-width:420px}
+.legend-titulo{font-weight:bold;color:#f0dfbf;margin-bottom:3px;letter-spacing:.04em}
+h1{font-size:clamp(22px,3vw,32px);margin:0 0 4px}
+#subtitle{color:#b8c4c9;font-size:14px}
+.legend{font-size:12px;line-height:1.5;color:#d6e0e2;background:#111b22b8;border:1px solid #3a4c58;border-radius:9px;padding:8px 12px}
+#lab{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border:2px solid #40515c;border-radius:14px;background:linear-gradient(#1a2832 0%,#202d34 48%,#303b3e 48%,#20292b 100%);box-shadow:0 16px 45px #0009;isolation:isolate}
+.wall-shelf{position:absolute;left:4%;right:4%;top:8%;height:26%;border-bottom:9px solid #4e5552;background:linear-gradient(90deg,#26353c,#1c292f);box-shadow:0 8px 12px #0005}
+.shelf-bracket{position:absolute;top:29%;height:7%;width:2%;background:#4e5552}
+.shelf-bracket.a{left:13%}.shelf-bracket.b{right:13%}
+#bench{position:absolute;left:0;right:0;bottom:0;height:44%;background:linear-gradient(180deg,#8b7761 0%,#665442 8%,#4a3e33 100%);border-top:9px solid #b39a7a;box-shadow:inset 0 12px 18px #fff1}
+#bench:after{content:"";position:absolute;inset:15% 0 0;background:repeating-linear-gradient(0deg,transparent 0 36px,#241d1830 37px 39px)}
+.label{font-size:clamp(9px,1vw,13px);letter-spacing:.08em;text-align:center;color:#dce4e3;text-shadow:0 1px 2px #000}
+.box{position:absolute;top:13%;width:13%;height:18%;border:3px solid #a88960;border-radius:5px;background:linear-gradient(135deg,#876744,#4f3927);box-shadow:0 8px 12px #0008;z-index:2;cursor:pointer}
+.box:before{content:"";position:absolute;left:0;right:0;top:0;height:24%;background:linear-gradient(#c6a87d,#876744);border-bottom:2px solid #3b2b20}
+.box .num{position:absolute;top:31%;left:0;right:0;font-weight:bold;text-align:center;font-size:clamp(18px,2vw,28px);color:#f6e7c7}
+.box .box-name{position:absolute;bottom:8%;left:2px;right:2px;text-align:center;font-size:clamp(8px,.9vw,12px);color:#eee1ca}
+.box{touch-action:none}
+.box.sel{outline:3px solid #ffd84d;outline-offset:5px;filter:drop-shadow(0 0 8px #ffd84d)}
+#sampleSlot.objetivo{border-color:#ffd84d;background:#ffd84d26}
+#heldMineral{position:absolute;display:none;width:10%;aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none;z-index:45;filter:drop-shadow(0 8px 6px #000a)}
+#heldMineral svg{width:100%;height:100%;overflow:visible}
+.box.open{transform:translateY(-4px);background:linear-gradient(135deg,#b29265,#6d4e2f);box-shadow:0 0 0 2px #e4bd70,0 8px 18px #0008}
+.box.locked{filter:grayscale(.8);opacity:.62;cursor:not-allowed}
+#box1{left:22%}#box2{left:39%}
+.box{top:15%}
+#materials-box{position:absolute;top:9.8%;left:57%;width:22%;height:23%;border:3px solid #b09a7b;border-radius:6px;background:linear-gradient(135deg,#8a7d6a,#48443d);z-index:6;padding:7px;box-shadow:0 8px 12px #0008;display:flex;flex-direction:column;gap:7px}
+#materials-box .label{font-size:clamp(10px,1.1vw,14px);font-weight:bold;letter-spacing:.04em;line-height:1.15;margin:0}
+#materialChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:6px;flex:1;min-height:0}
+.material-card{cursor:pointer;display:flex;align-items:center;justify-content:center;width:100%;min-width:0;min-height:0;padding:4px 3px;border:2px solid #9f9a8d;border-radius:4px;background:linear-gradient(135deg,#e0d8c9,#a39a87);color:#232323;font-size:clamp(10px,1vw,13px);font-weight:bold;box-shadow:0 3px 4px #0006;line-height:1.1}
+.material-card.selected{outline:3px solid #f2d16e;background:linear-gradient(135deg,#fff0bd,#d5b66b);transform:translateY(-1px)}
+#retirarMuestra{position:absolute;top:36%;left:26%;width:22%;z-index:6;padding:8px 6px;border:2px solid #b09a7b;border-radius:6px;background:linear-gradient(135deg,#6d3b32,#42221d);color:#ffe9e2;font-weight:bold;font-size:clamp(10px,1.1vw,14px);cursor:pointer;box-shadow:0 5px 8px #0007}
+#retirarPlaca{position:absolute;top:36%;left:57%;width:22%;z-index:6;padding:8px 6px;border:2px solid #b09a7b;border-radius:6px;background:linear-gradient(135deg,#6d3b32,#42221d);color:#ffe9e2;font-weight:bold;font-size:clamp(10px,1.1vw,14px);cursor:pointer;box-shadow:0 5px 8px #0007}
+#lamp{position:absolute;left:4%;bottom:24%;width:12%;height:19%;z-index:4}
+#lamp.selected-object{outline:3px solid #ffd84d;outline-offset:5px;border-radius:8px;filter:drop-shadow(0 0 8px #ffd84d)}
+.lamp-base{position:absolute;bottom:0;left:24%;width:53%;height:20%;border-radius:5px;background:linear-gradient(#777e80,#30383b);border:2px solid #9ba5a5}
+.lamp-neck{position:absolute;bottom:16%;left:48%;width:8%;height:42%;background:#7d8585;transform:rotate(-10deg);transform-origin:bottom}
+.lamp-head{position:absolute;left:23%;top:2%;width:60%;height:38%;border-radius:50% 50% 25% 25%;background:linear-gradient(135deg,#e4e5d8,#626c70);border:3px solid #adb8b7;transform:rotate(-15deg)}
+#lamp.on .lamp-head{background:radial-gradient(circle at 50% 60%,#fff9c7,#e8bf52 35%,#687176 78%);box-shadow:0 0 22px 9px #ffdc6970}
+#light-beam{position:absolute;display:none;left:12%;bottom:29%;width:37%;height:18%;z-index:1;background:linear-gradient(90deg,#ffe9a755,#ffe9a500);clip-path:polygon(0 30%,100% 0,100% 100%,0 65%);pointer-events:none}
+#lamp.on~#light-beam{display:block}
+.station{position:absolute;bottom:11%;height:30%;z-index:3;text-align:center}
+#sampleStation{left:23%;width:15%}
+#separatorStation{left:42%;width:15%}
+#photoStation{left:63%;width:24%;height:37%;bottom:8%}
+.station-title{font-size:clamp(9px,1vw,13px);letter-spacing:.07em;color:#f0dfbf;margin-bottom:6px;text-shadow:0 2px 2px #000}
+.worktop{position:absolute;left:0;right:0;bottom:0;height:18%;background:linear-gradient(#b6a185,#74614b);border:2px solid #d2b999;border-radius:4px;box-shadow:0 6px 10px #0006}
+#sampleSlot,#separatorSlot{position:absolute;left:5%;right:5%;bottom:17%;height:62%;border:2px dashed #c5b18e;border-radius:8px;background:#141a1b70;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#sampleSlot{left:8%;right:8%}
+.slot-hint{font-size:10px;color:#c8c9be;text-align:center;padding:4px}
+.oculto{display:none!important}
+.mineral{position:relative;width:70%;height:85%;filter:drop-shadow(0 5px 4px #0009);display:none}
+.mineral.show{display:block}
+.mineral svg{width:100%;height:100%;overflow:visible}
+#controlMineral,#unknownMineral{width:72%;height:84%}
+
+/* Placas vistas de perfil: el ancho representa el canto y el grosor del material */
+#separatorSlot{perspective:500px}
+
+#photoFrame{position:absolute;inset:8% 4% 16%;border:9px solid #4c4b43;border-radius:4px;background:#c8c3a9;box-shadow:inset 0 0 0 2px #e6dfc4,0 5px 10px #0009;overflow:hidden}
+#photoFrame.selected-object{border-color:#ffd84d;box-shadow:0 0 0 3px #ffd84d,0 0 18px 5px #ffd84d99,inset 0 0 0 2px #fff1b0}
+#photoSurface{position:absolute;inset:5%;background:#e2dec8;border:1px solid #a29c86;display:flex;align-items:center;justify-content:center}
+#photoSurface:after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse,#fff2,transparent 75%);pointer-events:none}
+#photoImage{width:100%;height:100%;opacity:0;transition:opacity .5s;filter:contrast(1.25);transform:scale(1.25)}
+#photoImage.revealed{opacity:1}
+#photoCaption{position:absolute;bottom:2%;left:0;right:0;text-align:center;color:#e9dfc9;font-size:clamp(8px,.8vw,11px)}
+#reveal{position:absolute;bottom:0;left:50%;transform:translateX(-50%);z-index:8;border:2px solid #e0c58b;background:#24313a;color:#fff2d5;border-radius:7px;padding:7px 22px;font-weight:bold;cursor:pointer;box-shadow:0 4px 8px #0007}
+button{font-family:inherit}
+button:disabled{opacity:.45;cursor:not-allowed}
+#lampToggle{position:absolute;left:0;right:0;bottom:-1%;transform:translateY(100%);padding:5px 2px;font-size:10px;background:#27333a;color:#f4e4bc;border:1px solid #b4a17f;border-radius:4px;cursor:pointer}
+#status{width:min(100%,calc((100dvh - 245px)*16/9));margin:12px auto 0;padding:10px 13px;background:#14212a;border:1px solid #3b4b55;border-radius:8px;color:#d7e3e2;font-size:14px;line-height:1.5}
+.action{border:1px solid #6c8792;border-radius:7px;padding:10px 14px;background:#223540;color:#edf6f5;font-weight:bold;cursor:pointer}
+.action.primary{background:#9a7438;border-color:#e7c77d;color:#fff8e8;font-size:15px;padding:12px 20px}
+.action:disabled{opacity:.4;cursor:not-allowed}
+#passHint{width:230px;text-align:center;color:#c7d2d5;font-size:11px;line-height:1.3;min-height:29px}
+.dialog{max-height:94%;overflow:auto}
+#modal{position:absolute;inset:0;border-radius:14px;background:#000b;z-index:40;display:none;align-items:center;justify-content:center;padding:20px}
+#modal.show{display:flex}
+.dialog{max-width:450px;width:100%;background:#17252e;border:1px solid #8e9da1;border-radius:12px;padding:24px;box-shadow:0 15px 55px #000b;text-align:center}
+.dialog h2{margin-top:0}
+.dialog p{line-height:1.5;color:#d5e0e1}
+.dialog-buttons{display:flex;gap:12px;justify-content:center}
+#cameraBox{position:fixed;right:12px;bottom:12px;width:150px;z-index:20;background:#111b;border:1px solid #53646b;border-radius:8px;padding:5px}
+#video{display:none}
+#cameraCanvas{width:100%;display:block;transform:scaleX(-1);border-radius:5px;opacity:.7}
+#cameraToggle{width:100%;font-size:11px;padding:4px;background:#253741;color:#fff;border:1px solid #61717a;border-radius:4px;cursor:pointer}
+#handCursor.agarrando{border-color:#5dff6a;box-shadow:0 0 12px #5dff6a}
+.apuntado{outline:2px dashed #4ef5db;outline-offset:3px}
+#handCursor{position:absolute;width:20px;height:20px;border:3px solid #4ef5db;border-radius:50%;transform:translate(-50%,-50%);display:none;pointer-events:none;z-index:50;box-shadow:0 0 12px #4ef5db}
+.small-note{width:min(100%,calc((100dvh - 245px)*16/9));margin:8px auto 0;font-size:11px;color:#9eafb3}
+@media(max-width:800px){
+.legend{max-width:100%}#cameraBox{width:105px}
+.station-title{white-space:normal}
+#materials-box{left:56%;width:24%;height:24%;padding:4px;gap:4px}
+#materialChoices{gap:4px}
+.material-card{font-size:clamp(9px,1.2vw,12px);padding:3px 1px}
+#status{font-size:12px}
+}
+</style>
+</head>
+<body>
+<div id="page">
+<div id="escenario">
+<header>
+  <div class="titulos">
+    <h1>Laboratorio Imposible</h1>
+    <div id="subtitle">Experimento de Henri Becquerel</div>
+  </div>
+  <div class="hdr-btns">
+    <button id="volver" class="action">← Volver al menú</button>
+    <button id="reset" class="action">Reiniciar Experimento</button>
+    <button id="pass" class="action primary" disabled>Pasar a Muestra Incógnita</button>
+    <span id="passHint">Primero completá el trabajo con la muestra control.</span>
+  </div>
+  <div class="legend">
+    <div class="legend-titulo">Gestos de este experimento</div>
+    ☝️ <b>Índice</b>: apuntar botones y seleccionar cajas, lámpara y placa fotográfica<br>
+    🤏 <b>Pinza</b>: con una caja seleccionada, sacar la muestra y llevarla a «Posición de la muestra»<br>
+    ✊ <b>Puño</b>: con la lámpara o la placa seleccionada, encender o apagar la luz / revelar la placa
+  </div>
+</header>
+
+
+<div id="lab">
+  <div class="wall-shelf"></div>
+  <div class="shelf-bracket a"></div>
+  <div class="shelf-bracket b"></div>
+  <div id="bench"></div>
+
+  <button id="box1" class="box" aria-label="Caja uno: muestra control">
+    <span class="num">01</span><span class="box-name">MUESTRA CONTROL</span>
+  </button>
+  <button id="box2" class="box locked" aria-label="Caja dos: muestra incógnita" disabled>
+    <span class="num">02</span><span class="box-name">MUESTRA INCÓGNITA</span>
+  </button>
+
+  <div id="materials-box">
+    <div class="label">CAJA DE PLACAS SEPARADORAS</div>
+    <div id="materialChoices">
+      <button class="material-card" data-material="papel">Papel</button>
+      <button class="material-card" data-material="madera">Madera</button>
+      <button class="material-card" data-material="aluminio">Aluminio</button>
+      <button class="material-card" data-material="plomo">Plomo</button>
+    </div>
+  </div>
+
+  <button id="retirarPlaca" disabled>Retirar Placa</button>
+  <button id="retirarMuestra" disabled>Retirar Muestra</button>
+
+  <div id="lamp">
+    <div class="lamp-head"></div><div class="lamp-neck"></div><div class="lamp-base"></div>
+    <button id="lampToggle">LUZ: APAGADA</button>
+  </div>
+  <div id="light-beam"></div>
+
+  <div class="station" id="sampleStation">
+    <div class="station-title">POSICIÓN DE LA MUESTRA</div>
+    <div id="sampleSlot">
+      <div class="slot-hint" id="sampleHint">Elegí una caja y<br>llevá la muestra acá</div>
+      <div id="controlMineral" class="mineral"><svg viewBox="0 0 150 150" aria-label="Mineral control: cuarzo"></svg></div>
+      <div id="unknownMineral" class="mineral"><svg viewBox="0 0 150 150" aria-label="Mineral muestra: amatista"></svg></div>
+    </div>
+    <div class="worktop"></div>
+  </div>
+
+  <div class="station" id="separatorStation">
+    <div class="station-title">SEPARADOR</div>
+    <div id="separatorSlot">
+      <div class="slot-hint" id="separatorHint">Elegí una placa de la caja<br>o volvé a tocarla para retirarla</div>
+    </div>
+    <div class="worktop"></div>
+  </div>
+
+  <div class="station" id="photoStation">
+    <div class="station-title">PLACA FOTOGRÁFICA</div>
+    <div id="photoFrame">
+      <div id="photoSurface">
+        <svg id="photoImage" viewBox="0 0 200 160" aria-label="Imagen revelada del mineral"></svg>
+      </div>
+    </div>
+    <div id="photoCaption">IMAGEN OCULTA · SIN REVELAR</div>
+    <button id="reveal">Revelar</button>
+    <div class="worktop"></div>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="dialog">
+    <h2>¿Probaste todas las funciones posibles?</h2>
+    <p>Antes de abrir la muestra incógnita, comprobá que ensayaste la luz y cada uno de los materiales separadores con la muestra control.</p>
+    <div class="dialog-buttons">
+      <button id="yes" class="action primary">Sí</button>
+      <button id="no" class="action">No</button>
+    </div>
+  </div>
+</div>
+<div id="heldMineral"><svg viewBox="0 0 150 150"></svg></div>
+<div id="handCursor"></div>
+</div>
+
+<div id="status" role="status">Instrucciones: seleccioná la caja 01 (muestra control) y llevá la muestra a «Posición de la muestra». Después encendé la luz, probá los separadores y tocá «Revelar» para observar el resultado.</div>
+
+<div class="small-note">Modelo didáctico cualitativo: la placa muestra una imagen al tocar «Revelar». Los resultados representan tendencias generales, no mediciones reales ni una calibración cuantitativa de la radiación.</div>
+</div>
+
+<div id="cameraBox">
+  <video id="video" autoplay playsinline></video>
+  <canvas id="cameraCanvas" width="320" height="240"></canvas>
+  <button id="cameraToggle">Activar cámara</button>
+</div>
+
+<script>
+(() => {
+const $=id=>document.getElementById(id);
+const state={placed:null,selectedBox:null,box2:false,sample:"control",light:false,material:"ninguno",revealed:false,controlTrials:new Set(),pointing:false,pointFrames:0,lastTarget:null,actionTriggered:false,selectedObject:null};
+const box1=$("box1"),box2=$("box2"),lamp=$("lamp"),lampToggle=$("lampToggle"),control=$("controlMineral"),unknown=$("unknownMineral"),sampleHint=$("sampleHint"),separatorHint=$("separatorHint"),photoImage=$("photoImage"),photoCaption=$("photoCaption"),reveal=$("reveal"),pass=$("pass"),modal=$("modal"),status=$("status");
+
+/* Minerales: cristales prismáticos con punta, dibujados por facetas */
+const PALETAS={
+  control:{l:"#b9cbd1",m:"#eef6f6",r:"#8fa5ad",tl:"#dce9ec",tm:"#ffffff",tr:"#b3c6cc",edge:"#5d7a84"},
+  unknown:{l:"#6d3f9a",m:"#a97bdb",r:"#442368",tl:"#c9a4f0",tm:"#e6d0fb",tr:"#7c4fae",edge:"#2d1546"}
+};
+function cristalPrisma(cx,by,w,sh,th,ang,p){
+  const x0=cx-w/2,a=x0+w*.3,b=x0+w*.7,x1=x0+w,ty=by-sh,ay=ty-th;
+  const f=(d,c)=>`<path d="${d}" fill="${c}" stroke="${p.edge}" stroke-width="1.2" stroke-linejoin="round"/>`;
+  return `<g transform="rotate(${ang} ${cx} ${by})">`+
+    f(`M${x0} ${ty+4} L${a} ${ty} L${a} ${by} L${x0} ${by-4}Z`,p.l)+
+    f(`M${a} ${ty} L${b} ${ty} L${b} ${by} L${a} ${by}Z`,p.m)+
+    f(`M${b} ${ty} L${x1} ${ty+4} L${x1} ${by-4} L${b} ${by}Z`,p.r)+
+    f(`M${x0} ${ty+4} L${a} ${ty} L${cx} ${ay}Z`,p.tl)+
+    f(`M${a} ${ty} L${b} ${ty} L${cx} ${ay}Z`,p.tm)+
+    f(`M${b} ${ty} L${x1} ${ty+4} L${cx} ${ay}Z`,p.tr)+`</g>`;
+}
+function mineralG(which,conBase,pal){
+  const p=pal||PALETAS[which];
+  if(which==="control"){
+    return (conBase?'<ellipse cx="76" cy="141" rx="42" ry="5" fill="#0006"/>':'')+
+      cristalPrisma(40,138,22,52,22,-14,p)+cristalPrisma(78,140,40,96,34,4,p)+cristalPrisma(116,138,20,40,18,16,p);
+  }
+  const roca=conBase?'<path d="M8 142 Q22 112 52 118 Q78 106 104 118 Q134 108 144 142 Z" fill="#5a4a5c" stroke="#2b2230" stroke-width="1.5"/><path d="M30 134 q8-8 16-2 M96 132 q10-8 18-1" stroke="#8a7690" fill="none" stroke-width="1.5"/>':'';
+  return roca+cristalPrisma(32,126,18,34,14,-32,p)+cristalPrisma(118,126,18,38,14,30,p)+cristalPrisma(54,122,26,58,20,-12,p)+cristalPrisma(94,122,26,50,20,14,p)+cristalPrisma(75,126,28,72,22,0,p);
+}
+
+function message(t){status.textContent=t}
+control.querySelector("svg").innerHTML=mineralG("control",true);
+unknown.querySelector("svg").innerHTML=mineralG("unknown",true);
+function invalidatePhoto(){reveal.textContent="Revelar";state.revealed=false;photoImage.classList.remove("revealed");photoImage.innerHTML="";photoCaption.textContent="IMAGEN OCULTA · SIN REVELAR"}
+
+const HINT_MUESTRA="Elegí una caja y<br>llevá la muestra acá";
+const agarre={activo:false,which:null,fuente:null,x:0,y:0,x0:0,y0:0,p0:null};
+const held=$("heldMineral"),retirarMuestraBtn=$("retirarMuestra"),sampleSlot=$("sampleSlot");
+
+function syncCajas(){
+  const fuera=w=>state.placed===w||(agarre.activo&&agarre.which===w);
+  box1.classList.toggle("open",fuera("control"));
+  box2.classList.toggle("open",fuera("unknown"));
+  box1.classList.toggle("sel",state.selectedBox==="control");
+  box2.classList.toggle("sel",state.selectedBox==="unknown");
+  box2.disabled=!state.box2;
+  box2.classList.toggle("locked",!state.box2);
+  retirarMuestraBtn.disabled=!(state.box2&&state.placed);
+  sampleSlot.classList.toggle("objetivo",agarre.activo);
+}
+
+function clickCaja(which){
+  if(which==="unknown"&&!state.box2)return;
+  if(state.placed){
+    message("Ya hay una muestra colocada. "+(state.box2?"Usá «Retirar Muestra» para sacarla y elegir otra.":"Seguí con las pruebas; cuando pases a la muestra incógnita vas a poder cambiarla."));
+    return;
+  }
+  state.selectedBox=state.selectedBox===which?null:which;
+  syncCajas();
+  message(state.selectedBox?"Caja "+(which==="control"?"01 (muestra control)":"02 (muestra incógnita)")+" seleccionada. Hacé la pinza 🤏 para sacar la muestra y llevala a «Posición de la muestra».":"Caja deseleccionada.");
+}
+box1.addEventListener("click",()=>clickCaja("control"));
+box2.addEventListener("click",()=>clickCaja("unknown"));
+
+function iniciarAgarre(which,x,y,fuente,p0){
+  Object.assign(agarre,{activo:true,which,fuente,x,y,x0:x,y0:y,p0:p0||null});
+  held.querySelector("svg").innerHTML=mineralG(which,true);
+  held.style.display="block";
+  moverAgarre(x,y);
+  syncCajas();
+  message("Llevá la muestra hasta «Posición de la muestra» y soltala ahí.");
+}
+function moverAgarre(x,y){
+  const l=$("escenario");
+  agarre.x=Math.max(0,Math.min(l.clientWidth,x));
+  agarre.y=Math.max(0,Math.min(l.clientHeight,y));
+  held.style.left=agarre.x+"px";
+  held.style.top=agarre.y+"px";
+}
+function terminarAgarre(){
+  agarre.activo=false;agarre.which=null;agarre.fuente=null;agarre.p0=null;
+  held.style.display="none";
+}
+function soltarAgarre(){
+  if(!agarre.activo)return;
+  const which=agarre.which;
+  const l=$("escenario"),r=l.getBoundingClientRect(),sl=sampleSlot.getBoundingClientRect();
+  const cx=r.left+l.clientLeft+agarre.x,cy=r.top+l.clientTop+agarre.y,m=16;
+  const dentro=cx>=sl.left-m&&cx<=sl.right+m&&cy>=sl.top-m&&cy<=sl.bottom+m;
+  terminarAgarre();
+  if(dentro){colocarMuestra(which)}
+  else{
+    syncCajas();
+    message("La muestra volvió a su caja. Soltala sobre «Posición de la muestra» para colocarla.");
+  }
+}
+
+function colocarMuestra(which){
+  state.placed=which;state.sample=which;state.selectedBox=null;
+  control.classList.toggle("show",which==="control");
+  unknown.classList.toggle("show",which==="unknown");
+  sampleHint.classList.add("oculto");
+  invalidatePhoto();
+  syncCajas();
+  message(which==="control"?
+    "Colocaste la muestra control: un cuarzo transparente, con cristales de punta. Probá la luz y los separadores; cada cambio requiere volver a revelar la placa.":
+    "Muestra incógnita colocada. Aunque su aspecto violáceo recuerda a un mineral fluorescente, la pregunta es si la placa se oscurece por luz visible o por una emisión que puede atravesar ciertos materiales. Diseñá pruebas comparables.");
+}
+
+function retirarMuestra(){
+  if(!state.placed)return;
+  state.placed=null;
+  control.classList.remove("show");unknown.classList.remove("show");
+  sampleHint.classList.remove("oculto");
+  sampleHint.innerHTML=HINT_MUESTRA;
+  invalidatePhoto();
+  syncCajas();
+  message("Muestra retirada. Elegí una caja y llevá la muestra a «Posición de la muestra».");
+}
+retirarMuestraBtn.addEventListener("click",retirarMuestra);
+
+function desbloquearIncognita(){
+  state.box2=true;
+  pass.disabled=true;
+  pass.textContent="Muestra incógnita habilitada";
+  $("passHint").textContent="Con «Retirar Muestra» podés alternar entre control e incógnita.";
+  syncCajas();
+  message("Muestra incógnita habilitada. Usá «Retirar Muestra» para sacar la muestra actual, elegí la caja 02 y llevá la muestra a «Posición de la muestra». Podés volver a la muestra control cuando quieras.");
+}
+
+lampToggle.addEventListener("click",()=>{
+  state.light=!state.light;
+  lamp.classList.toggle("on",state.light);
+  lampToggle.textContent="LUZ: "+(state.light?"ENCENDIDA":"APAGADA");
+  invalidatePhoto();
+  message("Fuente de luz "+(state.light?"encendida":"apagada")+". Tocá «Revelar» para registrar esta condición en la placa.");
+});
+
+const PERFILES={
+ papel:{w:4,defs:'<linearGradient id="gp" x1="0" x2="1"><stop offset="0" stop-color="#fbf5e4"/><stop offset=".5" stop-color="#e3d9c0"/><stop offset="1" stop-color="#f4ecd6"/></linearGradient>',fill:"url(#gp)",stroke:"#b8ad95"},
+ madera:{w:18,defs:'<linearGradient id="gm" x1="0" x2="1"><stop offset="0" stop-color="#8a5a30"/><stop offset=".3" stop-color="#c18d53"/><stop offset=".6" stop-color="#a06f40"/><stop offset="1" stop-color="#7a4d2a"/></linearGradient>',fill:"url(#gm)",stroke:"#4c2f18",extra:[28,62,96,130,164].map(y=>`<path d="M{x1} ${y} q{hw} -3 {w2} 0" stroke="#5a3a1f" stroke-opacity=".5" fill="none" stroke-width="1.2"/>`).join("")},
+ aluminio:{w:18,defs:'<linearGradient id="ga" x1="0" x2="1"><stop offset="0" stop-color="#75818a"/><stop offset=".25" stop-color="#eef2f3"/><stop offset=".55" stop-color="#a5b0b6"/><stop offset="1" stop-color="#6c777e"/></linearGradient>',fill:"url(#ga)",stroke:"#566067"},
+ plomo:{w:18,defs:'<linearGradient id="gl" x1="0" x2="1"><stop offset="0" stop-color="#3c4246"/><stop offset=".3" stop-color="#8b9397"/><stop offset=".6" stop-color="#585f64"/><stop offset="1" stop-color="#32383b"/></linearGradient>',fill:"url(#gl)",stroke:"#23282b"}
+};
+function perfilSVG(m){
+  const p=PERFILES[m],x=50-p.w/2;
+  const extra=(p.extra||"").replace(/\{x1\}/g,x).replace(/\{hw\}/g,p.w/2).replace(/\{w2\}/g,p.w);
+  return `<svg viewBox="0 0 100 200" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%" role="img" aria-label="Placa de ${m} vista de perfil"><defs>${p.defs}</defs><ellipse cx="50" cy="192" rx="${p.w/2+14}" ry="4" fill="#0007"/><rect x="${x}" y="8" width="${p.w}" height="180" rx="1" fill="${p.fill}" stroke="${p.stroke}" stroke-width="1"/>${extra}</svg>`;
+}
+function renderSeparator(){
+  $("retirarPlaca").disabled=state.material==="ninguno";
+  if(state.material==="ninguno"){
+    separatorHint.style.cssText="";
+    separatorHint.innerHTML="Elegí una placa de la caja<br>o volvé a tocarla para retirarla";
+  }else{
+    separatorHint.style.cssText="width:100%;height:100%;padding:6px";
+    separatorHint.innerHTML=perfilSVG(state.material);
+  }
+}
+
+document.querySelectorAll(".material-card").forEach(btn=>btn.addEventListener("click",()=>{
+  const chosen=btn.dataset.material;
+  state.material=state.material===chosen?"ninguno":chosen;
+  document.querySelectorAll(".material-card").forEach(b=>b.classList.toggle("selected",state.material===b.dataset.material));
+  renderSeparator();
+  invalidatePhoto();
+  if(state.placed==="control")state.controlTrials.add(state.material);
+  message(state.material==="ninguno"?"Separador retirado. Revelá la placa para observar el resultado sin una placa interpuesta.":"Placa de "+state.material+" seleccionada y colocada en el separador. Revelá la placa para comparar el resultado.");
+}));
+
+$("retirarPlaca").addEventListener("click",()=>{
+  if(state.material==="ninguno")return;
+  state.material="ninguno";
+  document.querySelectorAll(".material-card").forEach(b=>b.classList.remove("selected"));
+  renderSeparator();
+  invalidatePhoto();
+  if(state.placed==="control")state.controlTrials.add(state.material);
+  message("Placa retirada. Revelá la placa fotográfica para observar el resultado sin una placa interpuesta.");
+});
+
+function addTrial(){
+  if(state.placed==="control"){
+    state.controlTrials.add("luz:"+state.light);
+    state.controlTrials.add(state.material);
+    if(state.controlTrials.size>=5){
+      pass.disabled=false;
+      $("passHint").textContent="Ya podés decidir si pasás a la muestra incógnita.";
+    }
+  }
+}
+
+/* Mancha oscura en la placa: la forma del mineral, de un gris casi negro, con bordes difusos e irregulares */
+const PALETA_MANCHA={l:"#1c1a17",m:"#26231f",r:"#14120f",tl:"#24211d",tm:"#2c2924",tr:"#1a1815",edge:"#1c1a17"};
+function drawMineral(which,opacity){
+  const forma=mineralG(which,false,PALETA_MANCHA);
+  return `<defs>
+    <filter id="fMancha" x="-15%" y="-15%" width="130%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".07" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7" result="d"/><feGaussianBlur in="d" stdDeviation="1.3"/></filter>
+    <filter id="fHalo" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  <g opacity="${opacity}" transform="translate(32 12) scale(.92)">
+    <g filter="url(#fHalo)" opacity=".45">${forma}</g>
+    <g filter="url(#fMancha)">${forma}</g>
+  </g>`;
+}
+
+function revealPlate(){
+  if(!state.placed){
+    message("Primero colocá una muestra: seleccioná una caja y llevala a «Posición de la muestra».");
+    return;
+  }
+  state.sample=state.placed;
+  let darkness=0,why="";
+  if(state.sample==="control"){
+    if(state.light){
+      const transmission={ninguno:1,papel:.62,madera:.22,aluminio:.04,plomo:.01};
+      darkness=transmission[state.material]??1;
+      why=darkness>.45?"La luz produce una silueta reconocible del mineral.":darkness>.1?"El separador reduce la luz que llega a la placa: la silueta queda tenue.":"El separador bloquea casi toda la luz: la imagen es muy débil o no se distingue.";
+    }else{
+      darkness=0;
+      why="Con la luz apagada, la muestra control no produce una silueta apreciable en este modelo.";
+    }
+  }else{
+    const transmission={ninguno:.92,papel:.9,madera:.84,aluminio:.72,plomo:.24};
+    darkness=transmission[state.material]??.92;
+    why=state.material==="plomo"?"El plomo atenúa notablemente la señal en este modelo, aunque no se presenta como un blindaje absoluto.":"La placa se oscurece incluso sin depender de la iluminación visible: la emisión de la muestra atraviesa el separador en distinta medida.";
+  }
+  photoImage.innerHTML=drawMineral(state.sample,darkness);
+  photoImage.style.opacity="1";
+  photoImage.classList.add("revealed");
+  photoCaption.textContent=darkness<.08?"SIN IMAGEN DISTINGUIBLE":darkness<.4?"IMAGEN TENUE":"IMAGEN REGISTRADA";
+  state.revealed=true;
+  reveal.textContent="Listo!";
+  addTrial();
+  message(why+" Resultado registrado al revelar. Cambiá una sola variable por vez para comparar.");
+}
+
+reveal.addEventListener("click",revealPlate);
+pass.addEventListener("click",()=>{if(!pass.disabled)modal.classList.add("show")});
+$("yes").addEventListener("click",()=>{modal.classList.remove("show");desbloquearIncognita()});
+$("no").addEventListener("click",()=>{modal.classList.remove("show");message("Seguís con la muestra control. Probá las condiciones que te falten y volvé a «Revelar» después de cada cambio.")});
+
+$("reset").addEventListener("click",()=>{
+  if(agarre.activo)terminarAgarre();
+  Object.assign(state,{placed:null,selectedBox:null,box2:false,sample:"control",light:false,material:"ninguno",revealed:false});
+  control.classList.remove("show");
+  unknown.classList.remove("show");
+  sampleHint.classList.remove("oculto");
+  sampleHint.innerHTML=HINT_MUESTRA;
+  lamp.classList.remove("on");
+  lampToggle.textContent="LUZ: APAGADA";
+  document.querySelectorAll(".material-card").forEach(b=>b.classList.remove("selected"));
+  renderSeparator();
+  state.controlTrials.clear();
+  pass.disabled=true;
+  pass.textContent="Pasar a Muestra Incógnita";
+  $("passHint").textContent="Primero completá el trabajo con la muestra control.";
+  invalidatePhoto();
+  $("lamp").classList.remove("selected-object");
+  $("photoFrame").classList.remove("selected-object");
+  state.selectedObject=null;
+  syncCajas();
+  message("Experimento reiniciado. Seleccioná la caja 01 y llevá la muestra control a «Posición de la muestra».");
+});
+
+syncCajas();
+
+/* El experimento NO se controla con mouse, táctil ni teclado: solo con gestos.
+   (Los clics que generan los gestos son sintéticos, isTrusted=false, y pasan.) */
+["click","dblclick","mousedown","mouseup","pointerdown","pointerup","touchstart","touchend","contextmenu","auxclick"].forEach(t=>{
+  document.addEventListener(t,e=>{
+    if(e.isTrusted&&e.target.closest&&e.target.closest("#escenario")){e.preventDefault();e.stopImmediatePropagation()}
+  },{capture:true,passive:false});
+});
+document.addEventListener("keydown",e=>{
+  if((e.key==="Enter"||e.key===" ")&&e.target.closest&&e.target.closest("#escenario")){e.preventDefault();e.stopImmediatePropagation()}
+},true);
+$("volver").addEventListener("click",()=>{location.href="index.html"});
+
+// Cámara: arranca sola; el botón sirve para apagarla o reintentar.
+const video=$("video"),camCanvas=$("cameraCanvas"),ctx=camCanvas.getContext("2d"),camToggle=$("cameraToggle"),cursor=$("handCursor");
+let hands=null,camera=null,camActive=false,lastClick=0;
+
+/* =====================================================
+   MOTOR DE GESTOS (mismo que el laboratorio de Thomson)
+   ☝️ apuntar: botones y selección persistente (dwell)
+   🤏 pinza: con suavizado e histéresis (0.060 / 0.080)
+   ✊ puño: acciona el objeto seleccionado
+   ===================================================== */
+const HISTORIAL_TAMANIO=5,PINCH_THRESHOLD=0.060,RELEASE_THRESHOLD=0.080;
+const FRAMES_CONFIRMAR_SELECCION=6,FRAMES_CONFIRMAR_PUNO=10;
+let pinchActivo=false;
+const historialDistancias=[];
+let hoverElemento=null,hoverFrames=0,hoverDisparado=false,punoFrames=0,punoDisparado=false;
+
+function distancia3D(a,b){return Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)}
+function distancia2D(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function distanciaSuavizada(v){
+  historialDistancias.push(v);
+  if(historialDistancias.length>HISTORIAL_TAMANIO)historialDistancias.shift();
+  return historialDistancias.reduce((a,b)=>a+b,0)/historialDistancias.length;
+}
+function gestoSenalar(lm){
+  return lm[8].y<lm[6].y&&lm[12].y>lm[10].y&&lm[16].y>lm[14].y&&lm[20].y>lm[18].y;
+}
+function dedoCurvado(lm,punta,art){return distancia2D(lm[0],lm[punta])<distancia2D(lm[0],lm[art])}
+function puñoCerrado(lm){return dedoCurvado(lm,8,6)&&dedoCurvado(lm,12,10)&&dedoCurvado(lm,16,14)&&dedoCurvado(lm,20,18)}
+/* Puño con el pulgar claramente arriba/abajo (👍/👎): no cuenta como ✊ */
+function pulgarVertical(lm){
+  if(!puñoCerrado(lm))return false;
+  const palma=distancia2D(lm[0],lm[9]);
+  const vx=lm[4].x-lm[2].x,vy=lm[4].y-lm[2].y,largo=Math.hypot(vx,vy);
+  return largo>.5*palma&&distancia2D(lm[4],lm[5])>.5*palma&&Math.abs(vy)>=.7*largo;
+}
+
+function centroPalma(lm){
+  let sx=0,sy=0;
+  for(const i of [0,5,9,13,17]){sx+=lm[i].x;sy+=lm[i].y}
+  return {x:sx/5,y:sy/5};
+}
+
+function elementoBajoCursor(x,y){
+  const labEl=$("escenario"),r=labEl.getBoundingClientRect();
+  const el=document.elementFromPoint(r.left+labEl.clientLeft+x,r.top+labEl.clientTop+y);
+  if(!el)return null;
+  const boton=el.closest("button");
+  if(boton)return boton.disabled?null:boton;
+  return el.closest("#lamp")||el.closest("#photoFrame")||null;
+}
+function marcarApuntado(el){
+  document.querySelectorAll(".apuntado").forEach(e=>e.classList.remove("apuntado"));
+  if(el)el.classList.add("apuntado");
+}
+function reiniciarHover(){
+  marcarApuntado(null);
+  hoverElemento=null;hoverFrames=0;hoverDisparado=false;
+}
+function seleccionarObjeto(el){
+  const id=el.id;
+  $("lamp").classList.remove("selected-object");
+  $("photoFrame").classList.remove("selected-object");
+  if(state.selectedObject===id){
+    state.selectedObject=null;
+    message(id==="lamp"?"Lámpara deseleccionada.":"Placa fotográfica deseleccionada.");
+  }else{
+    el.classList.add("selected-object");
+    state.selectedObject=id;
+    message(id==="lamp"?"Lámpara seleccionada. Hacé el puño ✊ para encenderla o apagarla.":"Placa fotográfica seleccionada. Hacé el puño ✊ para revelarla.");
+  }
+}
+function procesarSenalar(el){
+  if(el===null){reiniciarHover();return}
+  if(el!==hoverElemento){hoverElemento=el;hoverFrames=0;hoverDisparado=false;marcarApuntado(el)}
+  hoverFrames++;
+  if(!hoverDisparado&&hoverFrames>=FRAMES_CONFIRMAR_SELECCION){
+    hoverDisparado=true;
+    if(el.tagName==="BUTTON")el.click();else seleccionarObjeto(el);
+  }
+}
+function procesarGestoPuno(activo){
+  if(!activo){punoFrames=0;punoDisparado=false;return}
+  punoFrames++;
+  if(!punoDisparado&&punoFrames>=FRAMES_CONFIRMAR_PUNO){
+    punoDisparado=true;
+    if(state.selectedObject==="lamp")lampToggle.click();
+    else if(state.selectedObject==="photoFrame")revealPlate();
+    else message("Primero seleccioná la lámpara o la placa fotográfica con ☝️ y después hacé el puño ✊.");
+  }
+}
+
+function handResults(results){
+  ctx.save();
+  ctx.clearRect(0,0,camCanvas.width,camCanvas.height);
+  if(results.image)ctx.drawImage(results.image,0,0,camCanvas.width,camCanvas.height);
+  ctx.restore();
+  if(!results.multiHandLandmarks||!results.multiHandLandmarks.length){
+    cursor.style.display="none";
+    cursor.classList.remove("agarrando");
+    pinchActivo=false;historialDistancias.length=0;
+    if(agarre.activo)soltarAgarre();
+    reiniciarHover();procesarGestoPuno(false);
+    return;
+  }
+  const lm=results.multiHandLandmarks[0];
+  if(window.drawConnectors&&window.HAND_CONNECTIONS)drawConnectors(ctx,lm,HAND_CONNECTIONS,{color:"#7de6d0",lineWidth:2});
+  if(window.drawLandmarks)drawLandmarks(ctx,lm,{color:"#ffe08a",lineWidth:1,radius:2});
+
+  const labEl=$("escenario");
+  const x=(1-lm[8].x)*labEl.clientWidth,y=lm[8].y*labEl.clientHeight;
+  cursor.style.display="block";
+  cursor.style.left=x+"px";
+  cursor.style.top=y+"px";
+
+  const d=distanciaSuavizada(distancia3D(lm[4],lm[8]));
+  const pinchAnterior=pinchActivo;
+  if(!pinchActivo&&d<PINCH_THRESHOLD)pinchActivo=true;
+  else if(pinchActivo&&d>RELEASE_THRESHOLD)pinchActivo=false;
+  const pinchInicio=pinchActivo&&!pinchAnterior;
+  cursor.classList.toggle("agarrando",pinchActivo);
+
+  const senalando=gestoSenalar(lm);
+  const puno=puñoCerrado(lm)&&!pulgarVertical(lm);
+
+  if(agarre.activo&&agarre.fuente==="gesto"){
+    if(pinchActivo){
+      const pa=centroPalma(lm);
+      moverAgarre(agarre.x0-(pa.x-agarre.p0.x)*labEl.clientWidth,agarre.y0+(pa.y-agarre.p0.y)*labEl.clientHeight);
+    }else soltarAgarre();
+  }else if(pinchInicio&&!puno&&!agarre.activo){
+    if(state.selectedBox&&!state.placed)iniciarAgarre(state.selectedBox,x,y,"gesto",centroPalma(lm));
+    else if(!state.selectedBox&&!state.placed)message("Para sacar una muestra, primero seleccioná una caja con ☝️ y después hacé la pinza 🤏.");
+  }
+
+  if(!agarre.activo&&senalando&&!pinchActivo)procesarSenalar(elementoBajoCursor(x,y));
+  else reiniciarHover();
+
+  procesarGestoPuno(!agarre.activo&&puno);
+}
+
+camToggle.addEventListener("click",async()=>{
+  if(camActive){
+    if(camera&&camera.stop)camera.stop();
+    camActive=false;
+    camToggle.textContent="Activar cámara";
+    cursor.style.display="none";
+    return;
+  }
+  try{
+    if(!window.Hands||!window.Camera)throw new Error("No se cargaron las librerías de cámara");
+    hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+    hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.5,minTrackingConfidence:.5});
+    hands.onResults(handResults);
+    camera=new Camera(video,{onFrame:async()=>{await hands.send({image:video})},width:320,height:240});
+    await camera.start();
+    camActive=true;
+    camToggle.textContent="Desactivar cámara";
+    message("Cámara activa. Seleccioná la caja 01 con ☝️ y llevá la muestra control a «Posición de la muestra» con la pinza 🤏.");
+  }catch(e){
+    message("No se pudo activar la cámara. Permití el acceso a la cámara y volvé a tocar «Activar cámara». El experimento se controla con la cámara. ("+e.message+")");
+  }
+});
+window.addEventListener("load",()=>{ if(!camActive) camToggle.click(); });
+})();
+</script>
+</body>
+</html>

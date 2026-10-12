@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laboratorio Imposible — Rutherford</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<style>
+:root{--text:#f3f4ef}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% 0,#263744,#0d1319 70%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+#pagina{width:min(1400px,98vw);margin:10px auto 14px}
+#escenario{position:relative;isolation:isolate;container-type:inline-size;width:min(100%,calc((100dvh - 318px)*2));min-width:640px;margin:0 auto;user-select:none;-webkit-user-select:none}
+#escenario,#escenario *{cursor:default!important}
+button{font-family:inherit}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- Encabezado ---------- */
+header{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:16px;margin:0 0 10px}
+h1{font-size:clamp(20px,2.7cqw,32px);margin:0 0 3px;white-space:nowrap}
+#subtitle{color:#b8c4c9;font-size:13px;white-space:nowrap}
+.hdr-btns{display:flex;flex-direction:column;gap:8px}
+.hdr-btns .action{width:clamp(170px,22cqw,230px);height:36px;padding:0 8px;font-size:13px}
+.legend{justify-self:end;max-width:480px;font-size:11px;line-height:1.4;color:#d6e0e2;background:#111b22b8;border:1px solid #3a4c58;border-radius:9px;padding:8px 12px}
+.legend-titulo{font-weight:bold;color:#f0dfbf;margin-bottom:3px;letter-spacing:.04em}
+.action{border:1px solid #6c8792;border-radius:7px;background:#223540;color:#edf6f5;font-weight:bold;cursor:pointer}
+.action.primary{background:#9a7438;border-color:#e7c77d;color:#fff8e8}
+.apuntado{outline:2px dashed #4ef5db;outline-offset:3px}
+.action.apuntado{background-image:linear-gradient(90deg,#4ef5db66 var(--p,0%),transparent var(--p,0%))}
+
+/* ---------- Laboratorio ---------- */
+#lab{position:relative;width:100%;aspect-ratio:2/1;overflow:hidden;border:2px solid #40515c;border-radius:14px;background:linear-gradient(#1a2832 0%,#202d34 65%,#2a3335 65%,#1b2326 100%);box-shadow:0 16px 45px #0009;isolation:isolate}
+#mesa{position:absolute;left:0;right:0;bottom:0;height:35%;background:linear-gradient(180deg,#8b7761 0%,#665442 7%,#4a3e33 100%);border-top:7px solid #b39a7a;box-shadow:inset 0 12px 18px #fff1}
+#mesa:after{content:"";position:absolute;inset:14% 0 0;background:repeating-linear-gradient(0deg,transparent 0 40px,#241d1830 41px 43px)}
+.capa{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#escFondo{z-index:1}
+#cajaFrente{z-index:3}
+#cvImpactos{z-index:4}
+#cvParticulas{z-index:5}
+.eq{position:absolute}
+.cajaLamina{z-index:2;transition:opacity .25s}
+.cajaLamina.fuera{opacity:0;pointer-events:none}
+.cajaLamina.sel,#laminaPuesta.sel{outline:3px solid #ffd84d;outline-offset:4px;border-radius:6px;filter:drop-shadow(0 0 8px #ffd84d)}
+#laminaHit{z-index:7;display:none}
+#laminaHit.visible{display:block}
+#laminaPuesta{z-index:6;display:none;filter:drop-shadow(3px 4px 3px #0009)}
+#laminaPuesta.visible{display:block}
+#etiquetaLamina{z-index:6;display:none;text-align:center;color:#f5df9f;font-weight:bold;font-size:1.25cqw;text-shadow:0 1px 3px #000;white-space:nowrap;transform:translateX(-50%)}
+#etiquetaLamina.visible{display:block}
+#laminaMano{z-index:30;display:none;transform:translate(-50%,-50%);pointer-events:none;filter:drop-shadow(0 0 7px #ffd84d) drop-shadow(0 8px 6px #000a)}
+#laminaMano.visible{display:block}
+#laminaMano .nom{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:4px;white-space:nowrap;font-size:1.3cqw;font-weight:bold;color:#fff3c2;text-shadow:0 1px 3px #000}
+#zonaSoporte{z-index:5;display:none;border:3px dashed #ffd84d;border-radius:50%;background:#ffd84d1a;pointer-events:none;animation:pulso 1.2s ease-in-out infinite}
+#zonaSoporte.visible{display:block}
+@keyframes pulso{50%{background:#ffd84d33}}
+#emisorHit{z-index:7;border-radius:10px}
+#emisorHit.selected-object{outline:3px solid #ffd84d;outline-offset:5px;filter:drop-shadow(0 0 8px #ffd84d)}
+.el-btn{position:absolute;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15cqw;padding-bottom:1cqw!important;border:2px solid #b09a7b;border-radius:6px;background:linear-gradient(135deg,#e0d8c9,#a39a87);color:#232323;box-shadow:0 3px 4px #0006;padding:0}
+.el-btn strong{font-size:1.4cqw;line-height:1}
+.el-btn small{font-size:1.2cqw;line-height:1;color:#3a352c}
+.el-btn .pt{position:absolute;left:20%;right:20%;bottom:.4cqw;height:.35cqw;border-radius:3px;border:1px solid #0006}
+.el-btn.activo{background:linear-gradient(135deg,#fff0bd,#d5b66b)}
+.el-btn.sel{outline:3px solid #ffd84d;outline-offset:2px;box-shadow:0 0 10px #ffd84d}
+#leyendaRastreo{position:absolute;z-index:8;left:1.5%;bottom:3%;display:none;gap:1.2cqw;padding:.5cqw .9cqw;border:1px solid #3a4c58;border-radius:8px;background:#0d1419cc;font-size:1.2cqw;color:#d6e0e2;align-items:center}
+#leyendaRastreo.visible{display:flex}
+#leyendaRastreo i{display:inline-block;width:1.6cqw;height:.35cqw;border-radius:2px;margin-right:.4cqw;vertical-align:middle}
+
+/* ---------- Panel inferior ---------- */
+#panel{display:grid;grid-template-columns:1fr .9fr 1.25fr;gap:10px;margin-top:10px;height:164px}
+.col{background:#14212a;border:1px solid #3b4b55;border-radius:10px;padding:9px 11px;min-width:0;overflow:hidden}
+.tit{font-size:11px;letter-spacing:.09em;color:#f0dfbf;margin-bottom:6px}
+#botones{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#botones .action{min-height:48px;font-size:13px;padding:4px 6px}
+#botones .action.activo{border-color:#e7c778;background:#51472f;color:#ffe7a5}
+#estadoTexto{font-size:12px;line-height:1.4;color:#d7e3e2}
+#estadoDatos{margin-top:6px;font-size:11px;color:#aebcc2;line-height:1.5}
+#regVacio{font-size:12px;line-height:1.5;color:#9eafb3}
+#regDatos{display:none}
+#regDatos.visible{display:block}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:5px}
+.dato{border:1px solid #454f58;border-radius:7px;padding:3px 8px;background:#10181d}
+.dato span{display:block;color:#abb7c0;font-size:10.5px}
+.dato strong{font-size:18px;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th,td{text-align:left;padding:2.5px 4px;border-bottom:1px solid #34414a}
+th{color:#c4cdd4;font-weight:600}
+td:last-child,th:last-child{text-align:right;white-space:nowrap}
+.barraFondo{display:inline-block;width:46%;height:6px;background:#2a343b;border-radius:6px;margin-left:6px;overflow:hidden;vertical-align:middle}
+.barra{display:block;height:100%;width:0;background:#e6c475;border-radius:6px}
+
+/* ---------- Cámara y cursor ---------- */
+#cameraBox{position:fixed;right:12px;bottom:12px;width:150px;z-index:60;background:#111b;border:1px solid #53646b;border-radius:8px;padding:5px}
+#video{display:none}
+#cameraCanvas{width:100%;display:block;transform:scaleX(-1);border-radius:5px;opacity:.7}
+#cameraToggle{width:100%;font-size:11px;padding:4px;background:#253741;color:#fff;border:1px solid #61717a;border-radius:4px;cursor:pointer}
+#handCursor{position:absolute;width:20px;height:20px;border:3px solid #4ef5db;border-radius:50%;transform:translate(-50%,-50%);display:none;pointer-events:none;z-index:50;box-shadow:0 0 12px #4ef5db}
+#handCursor.agarrando{border-color:#5dff6a;box-shadow:0 0 12px #5dff6a}
+@media(max-width:800px){.legend{max-width:100%}#cameraBox{width:105px}}
+</style>
+</head>
+<body>
+<div id="pagina">
+<div id="escenario">
+
+<header>
+  <div class="titulos">
+    <h1>Laboratorio Imposible</h1>
+    <div id="subtitle">Experimento de Rutherford</div>
+  </div>
+  <div class="hdr-btns">
+    <button id="volver" class="action">← Volver al menú</button>
+    <button id="reiniciar" class="action">Reiniciar Experimento</button>
+  </div>
+  <div class="legend">
+    <div class="legend-titulo">Gestos de este experimento</div>
+    ☝️ <b>Índice</b>: seleccionar una lámina (botón o lámina), el emisor y los botones<br>
+    🤏 <b>Pinza</b>: mantenerla para mover la lámina elegida; abrirla para soltar<br>
+    ✊ <b>Puño</b>: con el emisor seleccionado, encenderlo o apagarlo
+  </div>
+</header>
+
+<div id="lab">
+  <div id="mesa"></div>
+  <svg id="escFondo" class="capa" viewBox="0 0 1600 800" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+  <div id="cajasLaminas"></div>
+
+  <svg id="cajaFrente" class="capa" viewBox="0 0 1600 800" preserveAspectRatio="none" aria-hidden="true"></svg>
+  <canvas id="cvImpactos" class="capa" width="1600" height="800"></canvas>
+  <canvas id="cvParticulas" class="capa" width="1600" height="800"></canvas>
+
+  <div id="zonaSoporte" class="eq"></div>
+  <div id="laminaPuesta" class="eq"></div>
+  <div id="laminaHit" class="eq"></div>
+  <div id="etiquetaLamina" class="eq"></div>
+  <div id="emisorHit" class="eq" aria-label="Emisor de partículas"></div>
+  <div id="botonesCaja"></div>
+  <div id="laminaMano" class="eq"></div>
+
+  <div id="leyendaRastreo">
+    <span><i style="background:#8fdcff"></i>Rectas</span>
+    <span><i style="background:#ffd36b"></i>Desviadas</span>
+    <span><i style="background:#ff7a4d"></i>Muy desviadas</span>
+    <span><i style="background:#ff4fa3"></i>Rebotadas</span>
+  </div>
+</div>
+
+<section id="panel">
+  <div class="col">
+    <div class="tit">CONTROLES</div>
+    <div id="botones">
+      <button id="bRegistro" class="action">Registro de datos</button>
+      <button id="bRastreo" class="action">Rastrear partículas</button>
+      <button id="bLimpiar" class="action">Limpiar pantalla</button>
+      <button id="bQuitar" class="action" disabled>Retirar lámina</button>
+    </div>
+  </div>
+  <div class="col">
+    <div class="tit">ESTADO</div>
+    <div id="estadoTexto"></div>
+    <div id="estadoDatos"></div>
+  </div>
+  <div class="col">
+    <div class="tit">REGISTRO DE DATOS</div>
+    <div id="regVacio">Observá la pantalla detectora. Cuando quieras contar los impactos, activá «Registro de datos».</div>
+    <div id="regDatos">
+      <div class="stats">
+        <div class="dato"><span>Partículas emitidas</span><strong id="rEm">0</strong></div>
+        <div class="dato"><span>Impactos registrados</span><strong id="rIm">0</strong></div>
+      </div>
+      <table>
+        <tbody id="rTabla"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div id="handCursor"></div>
+</div>
+</div>
+
+<div id="cameraBox">
+  <video id="video" autoplay playsinline></video>
+  <canvas id="cameraCanvas" width="320" height="240"></canvas>
+  <button id="cameraToggle">Activar cámara</button>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $=id=>document.getElementById(id);
+
+/* Interruptores de diseño */
+const SOLO_GESTOS=true;      // true: el experimento solo responde a gestos (como Becquerel)
+const AUTO_LIMPIAR=true;     // true: al cambiar de lámina se limpia la pantalla para empezar una medición nueva
+
+/* Geometría de la escena (todo en un lienzo de 1600 x 800) */
+const W=1600,H=800;
+const CX=700,CY=335,R=262;   // centro de la lámina = centro del detector; radio del detector
+const XN=300;                // boca del emisor
+const ZONA=130;              // radio del soporte donde se suelta la lámina
+const TASA=64;               // partículas por segundo
+
+const ELEMS={
+  C:{n:"Carbono",s:"C",z:6,col:"#3a3d41"},
+  Al:{n:"Aluminio",s:"Al",z:13,col:"#c9d3d9"},
+  Fe:{n:"Hierro",s:"Fe",z:26,col:"#6a5a50"},
+  Au:{n:"Oro",s:"Au",z:79,col:"#e8c04a"}
+};
+const ORDEN=["C","Al","Fe","Au"];
+const LX0=1132,LDX=95;        // posición de la primera lámina en la caja y separación entre láminas
+
+const lab=$("lab"),esc=$("escenario"),cursor=$("handCursor");
+const cvI=$("cvImpactos").getContext("2d"),cvP=$("cvParticulas").getContext("2d");
+const state={emisor:false,registro:false,rastreo:false,placed:null,held:null,selectedFoil:null,selectedObject:null,emitidas:0,impactos:0,bins:[0,0,0,0],ultimaLamina:null};
+
+/* ===================== Utilidades de posición ===================== */
+const pct=(x,y,w,h)=>`left:${x/W*100}%;top:${y/H*100}%;width:${w/W*100}%;height:${h/H*100}%`;
+function pos(el,x,y,w,h){el.style.cssText+=";"+pct(x,y,w,h)}
+const rad=d=>d*Math.PI/180;
+const pol=(a,r)=>[CX+r*Math.cos(rad(a)),CY+r*Math.sin(rad(a))];
+const f1=n=>n.toFixed(1);
+function arco(a1,a2,r){
+  const [x1,y1]=pol(a1,r),[x2,y2]=pol(a2,r);
+  return `M${f1(x1)} ${f1(y1)} A${r} ${r} 0 0 1 ${f1(x2)} ${f1(y2)}`;
+}
+
+/* ===================== Láminas (aspecto de cada elemento) ===================== */
+let uid=0;
+function rng(seed){let s=seed;return()=>{s=(s*16807)%2147483647;return s/2147483647}}
+function laminaInner(k,w,h){
+  const id="gl"+(uid++);
+  const r=rng(k.charCodeAt(0)*31+k.length*7+11);
+  let defs="",tex="",borde="#999",sim="#fff";
+  if(k==="C"){
+    defs=`<stop offset="0" stop-color="#25272a"/><stop offset=".5" stop-color="#4f5459"/><stop offset="1" stop-color="#2d3033"/>`;
+    borde="#80878d";sim="#e3e7ea";
+    for(let i=0;i<16;i++){const y=r()*h;tex+=`<path d="M2 ${f1(y)} L${w-2} ${f1(y+6+r()*8)}" stroke="${i%2?"#000":"#9aa2a8"}" stroke-opacity=".16" stroke-width="1"/>`}
+  }else if(k==="Al"){
+    defs=`<stop offset="0" stop-color="#9aa7af"/><stop offset=".35" stop-color="#eff4f6"/><stop offset=".7" stop-color="#b3bfc6"/><stop offset="1" stop-color="#8e9ba3"/>`;
+    borde="#e5ecef";sim="#3d4a52";
+    for(let y=3;y<h;y+=4){tex+=`<path d="M2 ${y} H${w-2}" stroke="${y%8?"#fff":"#5d6a72"}" stroke-opacity=".22" stroke-width="1"/>`}
+  }else if(k==="Fe"){
+    defs=`<stop offset="0" stop-color="#43484e"/><stop offset=".5" stop-color="#6f757b"/><stop offset="1" stop-color="#3d4146"/>`;
+    borde="#9ea4a9";sim="#e8ddd2";
+    for(let i=0;i<34;i++){const x=3+r()*(w-6),y=3+r()*(h-6),q=1+r()*2.6;tex+=`<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(q)}" fill="${i%3?"#9a5428":"#c07a3c"}" fill-opacity=".55"/>`}
+  }else{
+    defs=`<stop offset="0" stop-color="#8a6416"/><stop offset=".3" stop-color="#f6d972"/><stop offset=".55" stop-color="#c99a2a"/><stop offset=".8" stop-color="#ffe9a0"/><stop offset="1" stop-color="#8f6c1c"/>`;
+    borde="#fff0b8";sim="#6b4a08";
+    tex=`<path d="M${w*.12} 2 L${w*.5} 2 L${w*.05} ${h-2} L2 ${h-2} Z" fill="#fff6c8" fill-opacity=".5"/><path d="M${w*.68} 2 L${w*.8} 2 L${w*.42} ${h-2} L${w*.3} ${h-2} Z" fill="#fff6c8" fill-opacity=".3"/>`;
+  }
+  const fs=Math.min(w*.4,28);
+  return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">${defs}</linearGradient></defs>`+
+    `<rect x="1" y="1" width="${w-2}" height="${h-2}" rx="3" fill="url(#${id})" stroke="${borde}" stroke-width="2"/>${tex}`+
+    `<text x="${w/2}" y="${f1(h*.17)}" text-anchor="middle" font-family="Arial" font-weight="700" font-size="${f1(fs)}" fill="${sim}" fill-opacity=".7">${ELEMS[k].s}</text>`;
+}
+const laminaSVG=(k,w,h)=>`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none">${laminaInner(k,w,h)}</svg>`;
+
+/* ===================== Escena (arte estático) ===================== */
+function dibujarEscena(){
+  const metal=`<linearGradient id="metal" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#b3bdc3"/><stop offset=".4" stop-color="#5d6a73"/><stop offset=".75" stop-color="#2f393f"/><stop offset="1" stop-color="#7d8a92"/></linearGradient>`+
+    `<linearGradient id="cuerpo" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7a858d"/><stop offset=".45" stop-color="#3a444b"/><stop offset="1" stop-color="#1b2125"/></linearGradient>`+
+    `<linearGradient id="laton" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f1d58a"/><stop offset=".5" stop-color="#b08a3d"/><stop offset="1" stop-color="#6b5120"/></linearGradient>`;
+  const sombra=(x,y,rx,ry)=>`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#000" fill-opacity=".42"/>`;
+  const BASE=602;   // línea donde apoyan los equipos sobre la mesa
+  let s=`<defs>${metal}</defs>`;
+
+  /* sombras sobre la mesa */
+  s+=sombra(155,BASE+14,135,9)+sombra(CX,BASE+14,75,8)+sombra(CX+45,BASE+15,140,9)+sombra(1310,702,235,14);
+
+  /* --- Emisor sobre soporte de mesa (apoyado en la mesa) --- */
+  const ey=CY-48;   // parte superior del cuerpo
+  s+=`<g>
+    <rect x="50" y="${BASE}" width="210" height="15" rx="3" fill="url(#metal)" stroke="#a0aab1"/>
+    <rect x="105" y="${ey+96}" width="16" height="${BASE-ey-96}" fill="#4b565e" stroke="#7a868e"/>
+    <rect x="209" y="${ey+96}" width="16" height="${BASE-ey-96}" fill="#4b565e" stroke="#7a868e"/>
+    <rect x="121" y="500" width="88" height="9" fill="#3d474e" stroke="#6f7b83"/>
+    <rect x="40" y="${ey}" width="236" height="96" rx="11" fill="url(#cuerpo)" stroke="#8b959c" stroke-width="2"/>
+    <rect x="46" y="${ey+74}" width="224" height="14" rx="4" fill="#d9a82c" fill-opacity=".9"/>
+    <path d="M78 ${ey+74} l14 14 M110 ${ey+74} l14 14 M142 ${ey+74} l14 14 M174 ${ey+74} l14 14 M206 ${ey+74} l14 14 M238 ${ey+74} l14 14" stroke="#1a1a1a" stroke-width="7"/>
+    <rect x="46" y="${ey}" width="224" height="10" rx="4" fill="#fff" fill-opacity=".14"/>
+    <text text-anchor="middle" font-family="Arial" font-size="21" font-weight="700" letter-spacing="2" fill="#e4eaed"><tspan x="152" y="${ey+37}">EMISOR DE</tspan><tspan x="152" y="${ey+61}">PARTÍCULAS</tspan></text>
+    <rect x="276" y="${CY-11}" width="26" height="22" rx="3" fill="url(#laton)" stroke="#f1dfae"/>
+    <circle cx="302" cy="${CY}" r="5" fill="#0c1115" stroke="#bda35c"/>
+    <circle id="ledE" cx="248" cy="${ey+22}" r="7" fill="#4a4f52" stroke="#aeb7bd" stroke-width="2"/>
+  </g>`;
+
+  /* --- Soporte de la lámina (marco con varilla apoyada en la mesa) --- */
+  s+=`<g>
+    <path d="M${CX-70} ${BASE+16} L${CX-50} ${BASE} L${CX+50} ${BASE} L${CX+70} ${BASE+16} Z" fill="#3a444b" stroke="#8b979f" stroke-width="2"/>
+    <rect x="${CX-6}" y="${CY+76}" width="12" height="${BASE-CY-76}" fill="url(#metal)" stroke="#a9b3ba"/>
+    <rect x="${CX-26}" y="${CY-84}" width="4" height="162" fill="#6d7a83" stroke="#a9b3ba"/>
+    <rect x="${CX+22}" y="${CY-84}" width="4" height="162" fill="#6d7a83" stroke="#a9b3ba"/>
+    <rect x="${CX-26}" y="${CY-88}" width="52" height="8" rx="2" fill="url(#metal)" stroke="#a9b3ba"/>
+    <rect x="${CX-26}" y="${CY+70}" width="52" height="9" rx="2" fill="url(#metal)" stroke="#a9b3ba"/>
+  </g>`;
+
+  /* --- Detector semicircular (frente) + tramos traseros finos --- */
+  const aP=arco(-90,90,R);
+  const [sx,sy]=pol(62,R);
+  s+=`<g>
+    <rect x="${CX-100}" y="${BASE}" width="270" height="16" rx="3" fill="#2f3a41" stroke="#8b979f" stroke-width="2"/>
+    <rect x="${f1(sx-6)}" y="${f1(sy)}" width="13" height="${f1(BASE-sy+2)}" fill="#4b565e" stroke="#7a868e"/>
+    <path d="${aP}" fill="none" stroke="#7da1b0" stroke-opacity=".16" stroke-width="30"/>
+    <path d="${aP}" fill="none" stroke="#3f5560" stroke-opacity=".8" stroke-width="18"/>
+    <path d="${arco(-90,90,R+9)}" fill="none" stroke="#b7e7f4" stroke-opacity=".85" stroke-width="2"/>
+    <path d="${arco(-90,90,R-9)}" fill="none" stroke="#b7e7f4" stroke-opacity=".45" stroke-width="1.5"/>
+    <path d="${arco(100,172,R)}" fill="none" stroke="#3f5560" stroke-opacity=".5" stroke-width="7" stroke-dasharray="10 6"/>
+    <path d="${arco(-172,-100,R)}" fill="none" stroke="#3f5560" stroke-opacity=".5" stroke-width="7" stroke-dasharray="10 6"/>
+  </g>`;
+  /* marcas y números de ángulo */
+  let tk="",tx="";
+  for(let a=-90;a<=90;a+=15){
+    const m=(a%30===0),[x1,y1]=pol(a,R+10),[x2,y2]=pol(a,R+(m?25:18));
+    tk+=`<path d="M${f1(x1)} ${f1(y1)} L${f1(x2)} ${f1(y2)}"/>`;
+    if(m){const [lx,ly]=pol(a,R+38);tx+=`<text x="${f1(lx)}" y="${f1(ly+6)}" text-anchor="middle">${Math.abs(a)}°</text>`}
+  }
+  for(const a of [120,150,-120,-150]){
+    const [lx,ly]=pol(a,R+26);
+    tx+=`<text x="${f1(lx)}" y="${f1(ly+6)}" text-anchor="middle" opacity=".6">${Math.abs(a)}°</text>`;
+  }
+  s+=`<g stroke="#c0cbd1" stroke-width="1.6" opacity=".7">${tk}</g><g fill="#c8d2d9" font-family="Arial" font-size="18" opacity=".9">${tx}</g>`;
+  s+=`<text x="${CX+215}" y="26" text-anchor="middle" font-family="Arial" font-size="20" letter-spacing="2" fill="#d9e2e8">PANTALLA DETECTORA</text>`;
+  s+=`<text x="${CX-R+10}" y="62" text-anchor="middle" font-family="Arial" font-size="14" letter-spacing="1" fill="#9fb0b8">PANTALLA TRASERA</text>`;
+
+  $("escFondo").innerHTML=s;
+
+  /* --- Frente de la caja de láminas (tapa la base de las láminas) --- */
+  $("cajaFrente").innerHTML=
+    `<defs><linearGradient id="cj" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3c4a54"/><stop offset="1" stop-color="#1f2a31"/></linearGradient></defs>`+
+    `<rect x="1100" y="482" width="420" height="210" rx="8" fill="url(#cj)" stroke="#8b98a1" stroke-width="3"/>`+
+    `<rect x="1100" y="482" width="420" height="16" rx="6" fill="#62717b" stroke="#8b98a1" stroke-width="2"/>`+
+    `<text x="1310" y="526" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" letter-spacing="3" fill="#e6eaec">CAJA DE LÁMINAS</text>`;
+
+  /* --- Láminas que sobresalen de la caja + botones con el nombre --- */
+  const cont=$("cajasLaminas"),bcont=$("botonesCaja");
+  ORDEN.forEach((k,i)=>{
+    const d=document.createElement("div");
+    d.className="eq cajaLamina";d.dataset.el=k;
+    pos(d,LX0+i*LDX,370,70,150);
+    d.innerHTML=laminaSVG(k,70,150);
+    cont.appendChild(d);
+
+    const e=ELEMS[k];
+    const b=document.createElement("button");
+    b.className="el-btn";b.dataset.el=k;
+    const fila=i<2?0:1,col=i%2;
+    const x=1145+col*170,y=fila===0?538:610;
+    pos(b,x,y,160,66);
+    b.innerHTML=`<span class="pt" style="background:${e.col}"></span><strong>${e.n}</strong><small>Z = ${e.z}</small>`;
+    b.setAttribute("aria-label",`Lámina de ${e.n}, número atómico ${e.z}`);
+    b.addEventListener("click",()=>seleccionarLamina(k));
+    bcont.appendChild(b);
+  });
+
+  /* --- Elementos interactivos de la escena --- */
+  pos($("emisorHit"),32,CY-58,276,116);
+  pos($("zonaSoporte"),CX-ZONA,CY-ZONA,ZONA*2,ZONA*2);
+  pos($("laminaPuesta"),CX-15,CY-70,30,140);
+  pos($("laminaHit"),CX-45,CY-80,90,160);
+  pos($("laminaMano"),0,0,64,136);
+  $("etiquetaLamina").style.cssText+=`;left:${CX/W*100}%;top:${(CY-122)/H*100}%`;
+}
+
+/* ===================== Mensajes y panel ===================== */
+const msg=t=>{$("estadoTexto").textContent=t};
+function actualizarEstadoDatos(){
+  const l=state.placed?`${ELEMS[state.placed].n} (Z = ${ELEMS[state.placed].z})`:"ninguna";
+  $("estadoDatos").innerHTML=`Emisor: <b>${state.emisor?"encendido":"apagado"}</b><br>Lámina en el haz: <b>${l}</b>`;
+  $("bQuitar").disabled=!state.placed;
+}
+function actualizarLamina(){
+  const p=state.placed,vis=!!p;
+  $("laminaPuesta").classList.toggle("visible",vis);
+  $("etiquetaLamina").classList.toggle("visible",vis);
+  if(vis){
+    $("laminaPuesta").innerHTML=laminaSVG(p,30,140);
+    $("etiquetaLamina").textContent=`${ELEMS[p].n.toUpperCase()} · Z = ${ELEMS[p].z}`;
+  }
+  const fuera=k=>state.placed===k||(state.held&&state.held.el===k);
+  const sf=state.selectedFoil;
+  $("laminaHit").classList.toggle("visible",vis&&!state.held);
+  $("laminaHit").dataset.el=p||"";
+  $("laminaPuesta").classList.toggle("sel",vis&&sf===p);
+  document.querySelectorAll(".cajaLamina").forEach(d=>{const k=d.dataset.el;d.classList.toggle("fuera",fuera(k));d.classList.toggle("sel",sf===k&&!fuera(k))});
+  document.querySelectorAll(".el-btn").forEach(b=>{const k=b.dataset.el;b.classList.toggle("activo",fuera(k));b.classList.toggle("sel",sf===k)});
+  actualizarEstadoDatos();
+}
+
+/* ===================== Manejo de láminas ===================== */
+const hayLamina=()=>!!state.placed&&!state.held;
+
+function mostrarMano(sx,sy){
+  const m=$("laminaMano");
+  m.style.left=(sx/W*100)+"%";m.style.top=(sy/H*100)+"%";
+}
+function deseleccionarFuente(){
+  $("emisorHit").classList.remove("selected-object");
+  if(state.selectedObject==="emisor")state.selectedObject=null;
+}
+/* ☝️ solo SELECCIONA la lámina (borde amarillo). Para moverla hay que hacer la pinza 🤏 */
+function seleccionarLamina(k){
+  if(state.held)return;
+  if(state.selectedFoil===k){
+    state.selectedFoil=null;actualizarLamina();
+    msg(`Lámina de ${ELEMS[k].n} deseleccionada.`);return;
+  }
+  deseleccionarFuente();
+  state.selectedFoil=k;actualizarLamina();
+  msg(`Lámina de ${ELEMS[k].n} (Z = ${ELEMS[k].z}) seleccionada. Hacé la pinza 🤏 y mantenela para moverla; soltá la pinza para dejarla (en el círculo del soporte central queda colocada).`);
+}
+function agarrarLamina(k,x0,y0,p0){
+  if(state.placed===k)state.placed=null;
+  state.held={el:k,mode:"grab",x:x0,y:y0,x0,y0,p0};
+  const m=$("laminaMano");
+  m.innerHTML=laminaSVG(k,64,136)+`<div class="nom">${ELEMS[k].n} · Z = ${ELEMS[k].z}</div>`;
+  m.classList.add("visible");$("zonaSoporte").classList.add("visible");
+  mostrarMano(x0,y0);actualizarLamina();
+  msg(`Llevás la lámina de ${ELEMS[k].n}. Mové la mano sin soltar la pinza hasta el círculo punteado y abrí la pinza para dejarla.`);
+}
+function colocarLamina(k){
+  const cambio=state.ultimaLamina!==k;
+  state.placed=k;
+  if(cambio&&AUTO_LIMPIAR&&state.ultimaLamina!==null)limpiarPantalla(true);
+  state.ultimaLamina=k;
+  actualizarLamina();
+  msg(`Lámina de ${ELEMS[k].n} (Z = ${ELEMS[k].z}) colocada entre la fuente y la pantalla. Seleccioná el emisor con ☝️ y encendelo con el puño ✊.`);
+}
+function soltarLamina(sx,sy){
+  const h=state.held;if(!h)return;
+  state.held=null;
+  $("laminaMano").classList.remove("visible");
+  $("zonaSoporte").classList.remove("visible");
+  if(Math.hypot(sx-CX,sy-CY)<=ZONA){colocarLamina(h.el)}
+  else{
+    actualizarLamina();
+    msg("La lámina volvió a la caja. Para colocarla, soltala con la pinza dentro del círculo punteado del soporte central.");
+  }
+}
+function retirarLamina(){
+  if(!state.placed)return;
+  const k=state.placed;state.placed=null;
+  actualizarLamina();
+  msg(`Lámina de ${ELEMS[k].n} retirada. Sin lámina, el haz llega recto a la pantalla.`);
+}
+
+/* ===================== Emisor, registro, rastreo ===================== */
+function alternarEmisor(){
+  state.emisor=!state.emisor;
+  const led=$("ledE");led.setAttribute("fill",state.emisor?"#ff554e":"#4a4f52");
+  led.style.filter=state.emisor?"drop-shadow(0 0 6px #ff554e)":"none";
+  actualizarEstadoDatos();
+  msg(state.emisor?"Emisor encendido. Observá dónde se van acumulando las marcas en la pantalla detectora.":"Emisor apagado. Las marcas permanecen en la pantalla.");
+}
+
+$("bRegistro").addEventListener("click",()=>{
+  state.registro=!state.registro;
+  $("bRegistro").classList.toggle("activo",state.registro);
+  $("bRegistro").textContent=state.registro?"Ocultar registro":"Registro de datos";
+  $("regDatos").classList.toggle("visible",state.registro);
+  $("regVacio").style.display=state.registro?"none":"block";
+  actualizarRegistro();
+  msg(state.registro?"Registro de datos activado: compará la cantidad de impactos en cada intervalo de ángulo.":"Registro de datos oculto. Volvé a observar la pantalla.");
+});
+$("bRastreo").addEventListener("click",()=>{
+  state.rastreo=!state.rastreo;
+  $("bRastreo").classList.toggle("activo",state.rastreo);
+  $("bRastreo").textContent=state.rastreo?"Ocultar trayectorias":"Rastrear partículas";
+  $("leyendaRastreo").classList.toggle("visible",state.rastreo);
+  if(!state.rastreo)trazos.length=0;
+  msg(state.rastreo?"Rastreo activado: se muestran las trayectorias de algunas partículas recientes y luego se borran.":"Rastreo desactivado.");
+});
+$("bLimpiar").addEventListener("click",()=>limpiarPantalla(false));
+$("bQuitar").addEventListener("click",retirarLamina);
+
+const ETIQ=["0° a 10°","10° a 30°","30° a 90°","90° a 180°"];
+function actualizarRegistro(){
+  $("rEm").textContent=state.emitidas.toLocaleString("es-AR");
+  $("rIm").textContent=state.impactos.toLocaleString("es-AR");
+  const max=Math.max(1,...state.bins);
+  $("rTabla").innerHTML=state.bins.map((v,i)=>
+    `<tr><td>${ETIQ[i]}</td><td>${v.toLocaleString("es-AR")}<span class="barraFondo"><span class="barra" style="width:${v/max*100}%"></span></span></td></tr>`).join("");
+}
+
+/* ===================== Simulación ===================== */
+let particulas=[],trazos=[],acum=0;
+function limpiarPantalla(auto){
+  cvI.clearRect(0,0,W,H);
+  state.emitidas=0;state.impactos=0;state.bins=[0,0,0,0];
+  particulas=[];trazos.length=0;
+  actualizarRegistro();
+  msg(auto?"Pantalla limpiada para comenzar una medición nueva con esta lámina.":"Pantalla limpiada. Los contadores volvieron a cero.");
+}
+
+/* Modelo cualitativo: la probabilidad de desviarse crece con Z (aprox. como Z^1,5).
+   No es una calibración cuantitativa del experimento histórico. */
+function sortearAngulo(){
+  if(!hayLamina())return(Math.random()-.5)*.6;
+  const z=ELEMS[state.placed].z,f=Math.pow(z/79,1.5),r=Math.random();
+  const pLeve=.018+.10*f,pMedia=.002+.045*f,pGrande=.0003+.014*f,pReb=.00002+.0035*f*f;
+  const sg=Math.random()<.5?-1:1;
+  if(r<pReb)return sg*(145+Math.random()*35);
+  if(r<pReb+pGrande)return sg*(90+Math.random()*45);
+  if(r<pReb+pGrande+pMedia)return sg*(30+Math.random()*60);
+  if(r<pReb+pGrande+pMedia+pLeve)return sg*(4+Math.random()*26);
+  return(Math.random()-.5)*(1.5+3*f);
+}
+function emitir(){
+  state.emitidas++;
+  particulas.push({x:XN,y:CY+(Math.random()-.5)*3,fase:0,v:850+Math.random()*80,ang:0,aDeg:0,yc:CY,r:1.6+Math.random()*.8});
+}
+function marcar(aDeg){
+  const t=rad(aDeg),rr=R+(Math.random()-.5)*8,x=CX+rr*Math.cos(t),y=CY+rr*Math.sin(t);
+  cvI.globalCompositeOperation="lighter";
+  cvI.fillStyle="rgba(150,255,110,.05)";cvI.beginPath();cvI.arc(x,y,9,0,7);cvI.fill();
+  cvI.fillStyle="rgba(215,255,150,.3)";cvI.beginPath();cvI.arc(x,y,2.2,0,7);cvI.fill();
+  cvI.globalCompositeOperation="source-over";
+  return[x,y];
+}
+function impacto(p){
+  const a=p.aDeg,ab=Math.abs(a);
+  state.impactos++;
+  state.bins[ab>=90?3:ab>=30?2:ab>=10?1:0]++;
+  const ad=ab>172?Math.sign(a)*(166+Math.random()*6):a;
+  const [x,y]=marcar(ad);
+  if(state.rastreo&&(ab>=4||Math.random()<.1)){
+    const col=ab>=90?"#ff4fa3":ab>=30?"#ff7a4d":ab>=4?"#ffd36b":"#8fdcff";
+    trazos.push({pts:[[XN,CY],[CX,p.yc],[x,y]],t0:performance.now(),col});
+    if(trazos.length>45)trazos.shift();
+  }
+}
+function paso(dt){
+  if(state.emisor){
+    acum+=dt;
+    const per=1/TASA;
+    while(acum>=per){emitir();acum-=per}
+  }
+  for(let i=particulas.length-1;i>=0;i--){
+    const p=particulas[i];
+    if(p.fase===0){
+      p.x+=p.v*dt;
+      if(p.x>=CX){
+        p.x=CX;p.y=CY+(Math.random()-.5)*4;p.yc=p.y;p.fase=1;p.v=800+Math.random()*60;
+        p.aDeg=sortearAngulo();p.ang=rad(p.aDeg);
+      }
+    }else{
+      p.x+=Math.cos(p.ang)*p.v*dt;p.y+=Math.sin(p.ang)*p.v*dt;
+      if(Math.hypot(p.x-CX,p.y-CY)>=R){impacto(p);particulas.splice(i,1)}
+    }
+  }
+}
+function dibujar(){
+  cvP.clearRect(0,0,W,H);
+  const ahora=performance.now();
+  for(let i=trazos.length-1;i>=0;i--){
+    const t=trazos[i],edad=(ahora-t.t0)/3200;
+    if(edad>=1){trazos.splice(i,1);continue}
+    cvP.globalAlpha=.65*(1-edad);cvP.strokeStyle=t.col;cvP.lineWidth=1.6;
+    cvP.beginPath();cvP.moveTo(t.pts[0][0],t.pts[0][1]);
+    for(let j=1;j<t.pts.length;j++)cvP.lineTo(t.pts[j][0],t.pts[j][1]);
+    cvP.stroke();
+  }
+  cvP.globalAlpha=1;
+  if(state.emisor){
+    cvP.strokeStyle="#8fdcff";cvP.globalAlpha=.1;cvP.lineWidth=5;
+    cvP.beginPath();cvP.moveTo(XN,CY);cvP.lineTo(CX,CY);cvP.stroke();cvP.globalAlpha=1;
+  }
+  cvP.fillStyle="#d7f3ff";cvP.shadowColor="#7fd4ff";cvP.shadowBlur=8;
+  for(const p of particulas){cvP.beginPath();cvP.arc(p.x,p.y,p.r,0,7);cvP.fill()}
+  cvP.shadowBlur=0;
+}
+let ultimo=performance.now(),ultReg=0;
+function bucle(t){
+  const dt=Math.min(.05,(t-ultimo)/1000||0);ultimo=t;
+  paso(dt);dibujar();
+  if(state.registro&&t-ultReg>300){ultReg=t;actualizarRegistro()}
+  requestAnimationFrame(bucle);
+}
+
+/* ===================== Reinicio general ===================== */
+function reiniciarTodo(){
+  if(state.held){state.held=null;$("laminaMano").classList.remove("visible");$("zonaSoporte").classList.remove("visible")}
+  state.placed=null;state.ultimaLamina=null;
+  if(state.emisor)alternarEmisor();
+  if(state.registro)$("bRegistro").click();
+  if(state.rastreo)$("bRastreo").click();
+  document.querySelectorAll(".apuntado").forEach(e=>e.classList.remove("apuntado"));
+  $("emisorHit").classList.remove("selected-object");state.selectedObject=null;state.selectedFoil=null;
+  limpiarPantalla(false);
+  actualizarLamina();
+  msg("Experimento reiniciado. Seleccioná una lámina con ☝️, mantené la pinza 🤏 para llevarla al soporte central y soltala ahí.");
+}
+$("reiniciar").addEventListener("click",reiniciarTodo);
+$("volver").addEventListener("click",()=>{location.href="index.html"});
+
+/* ===================== Bloqueo de mouse / táctil / teclado ===================== */
+if(SOLO_GESTOS){
+  ["click","dblclick","mousedown","mouseup","pointerdown","pointerup","touchstart","touchend","contextmenu","auxclick"].forEach(t=>{
+    document.addEventListener(t,e=>{
+      if(e.isTrusted&&e.target.closest&&e.target.closest("#escenario")){e.preventDefault();e.stopImmediatePropagation()}
+    },{capture:true,passive:false});
+  });
+  document.addEventListener("keydown",e=>{
+    if((e.key==="Enter"||e.key===" ")&&e.target.closest&&e.target.closest("#escenario")){e.preventDefault();e.stopImmediatePropagation()}
+  },true);
+}
+
+/* ===================== Cámara y gestos ===================== */
+const video=$("video"),camCanvas=$("cameraCanvas"),ctx=camCanvas.getContext("2d"),camToggle=$("cameraToggle");
+let hands=null,camera=null,camActive=false;
+
+/* =====================================================
+   MOTOR DE GESTOS (mismo que Thomson y Becquerel)
+   ☝️ apuntar: botones y selección persistente (dwell)
+   🤏 pinza: con suavizado e histéresis (0.060 / 0.080)
+   ✊ puño: acciona el objeto seleccionado
+   ===================================================== */
+const HISTORIAL_TAMANIO=5,PINCH_THRESHOLD=0.060,RELEASE_THRESHOLD=0.080;
+const FRAMES_CONFIRMAR_SELECCION=6,FRAMES_CONFIRMAR_PUNO=10;
+const FRAMES_BOTON=24;   // botones de controles/menú: hay que mantener el índice ~0,8 s (evita falsos clics)
+let pinchActivo=false;
+const historialDistancias=[];
+let hoverElemento=null,hoverFrames=0,hoverDisparado=false,punoFrames=0,punoDisparado=false;
+const posCursor={sx:CX,sy:CY};
+const histCursor=[];
+
+function distancia3D(a,b){return Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)}
+function distancia2D(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function distanciaSuavizada(v){
+  historialDistancias.push(v);
+  if(historialDistancias.length>HISTORIAL_TAMANIO)historialDistancias.shift();
+  return historialDistancias.reduce((a,b)=>a+b,0)/historialDistancias.length;
+}
+function gestoSenalar(lm){
+  return lm[8].y<lm[6].y&&lm[12].y>lm[10].y&&lm[16].y>lm[14].y&&lm[20].y>lm[18].y;
+}
+function dedoCurvado(lm,punta,art){return distancia2D(lm[0],lm[punta])<distancia2D(lm[0],lm[art])}
+function puñoCerrado(lm){return dedoCurvado(lm,8,6)&&dedoCurvado(lm,12,10)&&dedoCurvado(lm,16,14)&&dedoCurvado(lm,20,18)}
+function pulgarVertical(lm){
+  if(!puñoCerrado(lm))return false;
+  const palma=distancia2D(lm[0],lm[9]);
+  const vx=lm[4].x-lm[2].x,vy=lm[4].y-lm[2].y,largo=Math.hypot(vx,vy);
+  return largo>.5*palma&&distancia2D(lm[4],lm[5])>.5*palma&&Math.abs(vy)>=.7*largo;
+}
+function centroPalma(lm){
+  let sx=0,sy=0;
+  for(const i of [0,5,9,13,17]){sx+=lm[i].x;sy+=lm[i].y}
+  return{x:sx/5,y:sy/5};
+}
+/* píxeles del escenario -> unidades de la escena (1600 x 800) */
+function aEscena(x,y){
+  const k=W/lab.clientWidth;
+  return{sx:(x-lab.offsetLeft-lab.clientLeft)*k,sy:(y-lab.offsetTop-lab.clientTop)*k};
+}
+
+function elementoBajoCursor(x,y){
+  const r=esc.getBoundingClientRect();
+  const el=document.elementFromPoint(r.left+esc.clientLeft+x,r.top+esc.clientTop+y);
+  if(!el)return null;
+  const boton=el.closest("button");
+  if(boton)return boton.disabled?null:boton;
+  return el.closest("#emisorHit")||el.closest(".cajaLamina:not(.fuera)")||el.closest("#laminaHit.visible")||null;
+}
+function marcarApuntado(el){
+  document.querySelectorAll(".apuntado").forEach(e=>{e.classList.remove("apuntado");e.style.removeProperty("--p")});
+  if(el)el.classList.add("apuntado");
+}
+function reiniciarHover(){marcarApuntado(null);hoverElemento=null;hoverFrames=0;hoverDisparado=false}
+function seleccionarObjeto(el){
+  if(el.dataset&&el.dataset.el&&(el.classList.contains("cajaLamina")||el.id==="laminaHit")){seleccionarLamina(el.dataset.el);return}
+  if(state.selectedFoil){state.selectedFoil=null;actualizarLamina()}
+  const sel=el.classList.contains("selected-object");
+  $("emisorHit").classList.remove("selected-object");
+  if(sel){state.selectedObject=null;msg("Emisor deseleccionado.")}
+  else{el.classList.add("selected-object");state.selectedObject="emisor";msg("Emisor de partículas seleccionado. Hacé el puño ✊ para encenderlo o apagarlo.")}
+}
+function procesarSenalar(el){
+  if(el===null){reiniciarHover();return}
+  if(el!==hoverElemento){hoverElemento=el;hoverFrames=0;hoverDisparado=false;marcarApuntado(el)}
+  hoverFrames++;
+  const necesarios=(el.tagName==="BUTTON"&&!el.classList.contains("el-btn"))?FRAMES_BOTON:FRAMES_CONFIRMAR_SELECCION;
+  if(!hoverDisparado)el.style.setProperty("--p",Math.min(100,hoverFrames/necesarios*100)+"%");
+  if(!hoverDisparado&&hoverFrames>=necesarios){
+    hoverDisparado=true;
+    if(el.tagName==="BUTTON")el.click();else seleccionarObjeto(el);
+  }
+}
+function procesarGestoPuno(activo){
+  if(!activo){punoFrames=0;punoDisparado=false;return}
+  punoFrames++;
+  if(!punoDisparado&&punoFrames>=FRAMES_CONFIRMAR_PUNO){
+    punoDisparado=true;
+    if(state.selectedObject==="emisor")alternarEmisor();
+    else msg("Primero seleccioná el emisor de partículas con ☝️ y después hacé el puño ✊.");
+  }
+}
+
+function soltarEnCursor(){
+  const h=state.held;if(!h)return;
+  soltarLamina(h.x,h.y);
+}
+
+function handResults(results){
+  ctx.save();
+  ctx.clearRect(0,0,camCanvas.width,camCanvas.height);
+  if(results.image)ctx.drawImage(results.image,0,0,camCanvas.width,camCanvas.height);
+  ctx.restore();
+  if(!results.multiHandLandmarks||!results.multiHandLandmarks.length){
+    cursor.style.display="none";cursor.classList.remove("agarrando");
+    pinchActivo=false;historialDistancias.length=0;histCursor.length=0;
+    if(state.held)soltarEnCursor();
+    reiniciarHover();procesarGestoPuno(false);
+    return;
+  }
+  const lm=results.multiHandLandmarks[0];
+  if(window.drawConnectors&&window.HAND_CONNECTIONS)drawConnectors(ctx,lm,HAND_CONNECTIONS,{color:"#7de6d0",lineWidth:2});
+  if(window.drawLandmarks)drawLandmarks(ctx,lm,{color:"#ffe08a",lineWidth:1,radius:2});
+
+  const x=(1-lm[8].x)*esc.clientWidth,y=lm[8].y*esc.clientHeight;
+  cursor.style.display="block";cursor.style.left=x+"px";cursor.style.top=y+"px";
+  const e=aEscena(x,y);
+  posCursor.sx=e.sx;posCursor.sy=e.sy;
+  histCursor.push({sx:e.sx,sy:e.sy});
+  if(histCursor.length>6)histCursor.shift();
+
+  const d=distanciaSuavizada(distancia3D(lm[4],lm[8]));
+  const pinchAnterior=pinchActivo;
+  if(!pinchActivo&&d<PINCH_THRESHOLD)pinchActivo=true;
+  else if(pinchActivo&&d>RELEASE_THRESHOLD)pinchActivo=false;
+  const pinchInicio=pinchActivo&&!pinchAnterior;
+  cursor.classList.toggle("agarrando",pinchActivo);
+
+  const senalando=gestoSenalar(lm);
+  const puno=puñoCerrado(lm)&&!pulgarVertical(lm);
+  const h=state.held;
+
+  if(h){
+    /* La lámina sólo se mueve mientras se mantiene la pinza; al abrirla, se suelta */
+    if(pinchActivo){
+      const pa=centroPalma(lm),G=1.2,hLab=lab.clientHeight*W/lab.clientWidth;
+      h.x=Math.max(0,Math.min(W,h.x0-(pa.x-h.p0.x)*W*G));
+      h.y=Math.max(0,Math.min(hLab,h.y0+(pa.y-h.p0.y)*esc.clientHeight*W/esc.clientWidth*G));
+      mostrarMano(h.x,h.y);
+    }else soltarEnCursor();
+  }else if(pinchInicio&&!puno){
+    const k=state.selectedFoil;
+    if(k){
+      if(state.placed===k)agarrarLamina(k,CX,CY,centroPalma(lm));
+      else{
+        const i=ORDEN.indexOf(k);
+        agarrarLamina(k,LX0+i*LDX+35,445,centroPalma(lm));
+      }
+    }else msg("Primero seleccioná una lámina con ☝️ (apuntá a su botón o a la lámina); después hacé la pinza 🤏.");
+  }
+
+  if(!state.held&&senalando&&!pinchActivo)procesarSenalar(elementoBajoCursor(x,y));
+  else reiniciarHover();
+
+  procesarGestoPuno(!state.held&&puno);
+}
+
+camToggle.addEventListener("click",async()=>{
+  if(camActive){
+    if(camera&&camera.stop)camera.stop();
+    camActive=false;camToggle.textContent="Activar cámara";cursor.style.display="none";return;
+  }
+  try{
+    if(!window.Hands||!window.Camera)throw new Error("No se cargaron las librerías de cámara");
+    hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+    hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.5,minTrackingConfidence:.5});
+    hands.onResults(handResults);
+    camera=new Camera(video,{onFrame:async()=>{await hands.send({image:video})},width:320,height:240});
+    await camera.start();
+    camActive=true;camToggle.textContent="Desactivar cámara";
+    msg("Cámara activa. Apuntá con ☝️ a una lámina (o a su botón) para seleccionarla.");
+  }catch(err){
+    msg("No se pudo activar la cámara. Permití el acceso a la cámara y volvé a tocar «Activar cámara». El experimento se controla con la cámara. ("+err.message+")");
+  }
+});
+
+/* ===================== Inicio ===================== */
+dibujarEscena();
+actualizarLamina();
+actualizarRegistro();
+msg("Seleccioná una lámina con ☝️, mantené la pinza 🤏 para llevarla al soporte central y soltá la pinza para dejarla. Después seleccioná el emisor con ☝️ y encendelo con el puño ✊.");
+requestAnimationFrame(bucle);
+window.addEventListener("load",()=>{if(!camActive)camToggle.click()});
+})();
+</script>
+</body>
+</html>

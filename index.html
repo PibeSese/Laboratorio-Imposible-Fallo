@@ -1,0 +1,238 @@
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Laboratorio Imposible: explorá experimentos históricos de la ciencia mediante laboratorios virtuales interactivos."
+    />
+    <meta name="theme-color" content="#0b1018" />
+    <title>Laboratorio Imposible</title>
+
+    <!-- MediaPipe: carga directa desde CDN, sin modificar package.json -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand" href="#" aria-label="Laboratorio Imposible, inicio">
+          <span class="brand-symbol" aria-hidden="true">LI</span>
+          <span class="brand-name">LABORATORIO <strong>IMPOSIBLE</strong></span>
+        </a>
+
+        <span class="header-label">
+          <span class="status-dot"></span>
+          LABORATORIOS VIRTUALES
+        </span>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="main-title">
+          <p class="eyebrow">
+            <span class="eyebrow-line"></span>
+            CIENCIA · HISTORIA · EXPERIMENTACIÓN
+          </p>
+
+          <h1 id="main-title">
+            LABORATORIO<br />
+            <span>IMPOSIBLE</span>
+          </h1>
+
+          <p class="hero-description">
+            Cuatro experimentos. Cuatro grandes preguntas.
+            Entrá al laboratorio y descubrí qué sucede cuando
+            la ciencia se pone a prueba.
+          </p>
+
+          <div class="hero-divider">
+            <span>SELECCIONÁ UN EXPERIMENTO</span>
+            <span class="divider-line"></span>
+            <span class="experiment-count">04 DISPONIBLES</span>
+          </div>
+        </section>
+
+        <section class="laboratories" aria-label="Experimentos disponibles">
+          <article class="lab-card lab-becquerel">
+            <button class="lab-card-button" type="button"
+              data-lab="becquerel"
+              aria-label="Explorar el laboratorio de Antoine Henri Becquerel"
+              onclick="window.location.href='./becquerel.html'">
+        
+              <div class="card-visual">
+                <span class="card-number">EXP. 01</span>
+                <span class="card-status">INVESTIGACIÓN</span>
+        
+                <div class="visual-art art-becquerel" aria-hidden="true">
+                  <div class="orbit orbit-one"></div>
+                  <div class="orbit orbit-two"></div>
+                  <div class="mineral mineral-one"></div>
+                  <div class="mineral mineral-two"></div>
+                  <div class="radiation radiation-one"></div>
+                  <div class="radiation radiation-two"></div>
+                  <div class="radiation radiation-three"></div>
+                  <div class="plate"></div>
+                </div>
+        
+                <span class="visual-caption">RADIACIÓN INVISIBLE</span>
+              </div>
+        
+              <div class="card-info">
+                <p class="card-category">FENÓMENOS RADIACTIVOS</p>
+                <h2>Becquerel</h2>
+                <p class="scientist-name">Antoine Henri Becquerel</p>
+        
+                <div class="card-footer">
+                  <span>Seleccionar laboratorio</span>
+                  <span class="card-arrow" aria-hidden="true">↗</span>
+                </div>
+              </div>
+            </button>
+          </article>
+
+          <article class="lab-card lab-rutherford">
+            <button class="lab-card-button" type="button" data-lab="rutherford"
+              aria-label="Explorar el laboratorio de Ernest Rutherford">
+              <div class="card-visual">
+                <span class="card-number">EXP. 02</span>
+                <span class="card-status">INVESTIGACIÓN</span>
+                <div class="visual-art art-rutherford" aria-hidden="true">
+                  <div class="scatter-ring"></div>
+                  <div class="scatter-ring scatter-ring-two"></div>
+                  <div class="foil"></div>
+                  <div class="particle particle-one"></div>
+                  <div class="particle particle-two"></div>
+                  <div class="particle particle-three"></div>
+                  <div class="particle particle-four"></div>
+                  <div class="particle-trail trail-one"></div>
+                  <div class="particle-trail trail-two"></div>
+                  <div class="particle-trail trail-three"></div>
+                  <div class="particle-trail trail-four"></div>
+                </div>
+                <span class="visual-caption">DISPERSIÓN DE PARTÍCULAS</span>
+              </div>
+              <div class="card-info">
+                <p class="card-category">ESTRUCTURA ATÓMICA</p>
+                <h2>Rutherford</h2>
+                <p class="scientist-name">Ernest Rutherford</p>
+                <div class="card-footer">
+                  <span>Seleccionar laboratorio</span>
+                  <span class="card-arrow" aria-hidden="true">↗</span>
+                </div>
+              </div>
+            </button>
+          </article>
+
+          <article class="lab-card lab-curie">
+            <button class="lab-card-button" type="button" data-lab="curie"
+              aria-label="Explorar el laboratorio de Marie y Pierre Curie">
+              <div class="card-visual">
+                <span class="card-number">EXP. 03</span>
+                <span class="card-status">INVESTIGACIÓN</span>
+                <div class="visual-art art-curie" aria-hidden="true">
+                  <div class="flask flask-one">
+                    <div class="flask-liquid"></div>
+                  </div>
+                  <div class="flask flask-two">
+                    <div class="flask-liquid"></div>
+                  </div>
+                  <div class="crystal crystal-one"></div>
+                  <div class="crystal crystal-two"></div>
+                  <div class="crystal crystal-three"></div>
+                  <div class="glow glow-one"></div>
+                  <div class="glow glow-two"></div>
+                </div>
+                <span class="visual-caption">EL MISTERIO DE LA PECHBLENDA</span>
+              </div>
+              <div class="card-info">
+                <p class="card-category">QUÍMICA Y RADIACTIVIDAD</p>
+                <h2>Marie y Pierre Curie</h2>
+                <p class="scientist-name">Investigación de la pechblenda</p>
+                <div class="card-footer">
+                  <span>Seleccionar laboratorio</span>
+                  <span class="card-arrow" aria-hidden="true">↗</span>
+                </div>
+              </div>
+            </button>
+          </article>
+
+          <article class="lab-card lab-thomson">
+            <button class="lab-card-button" type="button" data-lab="thomson"
+              aria-label="Explorar el laboratorio de Joseph John Thomson">
+              <div class="card-visual">
+                <span class="card-number">EXP. 04</span>
+                <span class="card-status">INVESTIGACIÓN</span>
+                <div class="visual-art art-thomson" aria-hidden="true">
+                  <div class="tube tube-neck"></div>
+                  <div class="tube-bulb"></div>
+                  <div class="tube-beam"></div>
+                  <div class="tube-electron electron-one"></div>
+                  <div class="tube-electron electron-two"></div>
+                  <div class="tube-electron electron-three"></div>
+                  <div class="tube-plate plate-top"></div>
+                  <div class="tube-plate plate-bottom"></div>
+                  <div class="tube-base"></div>
+                </div>
+                <span class="visual-caption">RAYOS CATÓDICOS</span>
+              </div>
+              <div class="card-info">
+                <p class="card-category">ELECTRICIDAD Y MATERIA</p>
+                <h2>Thomson</h2>
+                <p class="scientist-name">Joseph John Thomson</p>
+                <div class="card-footer">
+                  <span>Seleccionar laboratorio</span>
+                  <span class="card-arrow" aria-hidden="true">↗</span>
+                </div>
+              </div>
+            </button>
+          </article>
+        </section>
+
+        <section class="notice" aria-live="polite" hidden>
+          <span class="notice-icon" aria-hidden="true">i</span>
+          <p class="notice-text"></p>
+          <button class="notice-close" type="button" aria-label="Cerrar aviso">×</button>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <span>LABORATORIO IMPOSIBLE</span>
+        <span>UN ESPACIO PARA EXPERIMENTAR Y DESCUBRIR</span>
+      </footer>
+    </div>
+
+    <!-- Cámara y esqueleto de la mano -->
+    <aside id="camera-panel" aria-label="Vista de la cámara">
+      <div class="camera-heading">
+        <span class="camera-live-dot"></span>
+        <span>SEGUIMIENTO DE MANO</span>
+      </div>
+      <div class="camera-view">
+        <video id="input-video" autoplay muted playsinline></video>
+        <canvas id="camera-canvas" width="320" height="240"></canvas>
+        <span id="camera-placeholder">INICIANDO CÁMARA…</span>
+      </div>
+      <div id="gesture-status">Iniciando MediaPipe…</div>
+    </aside>
+
+    <!-- Cursor controlado por el dedo índice -->
+    <div id="hand-cursor" aria-hidden="true">
+      <span></span>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

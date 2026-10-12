@@ -1,0 +1,2557 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Laboratorio Imposible — Thomson</title>
+
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* =====================================================
+       PÁGINA Y ENCABEZADO
+    ===================================================== */
+
+    #pagina {
+      position: relative;
+      width: min(1200px, 96vw);
+      margin: 0 auto;
+    }
+
+    #encabezado {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      margin: 12px 0;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 28px;
+      text-align: left;
+    }
+
+    #subtitulo {
+      color: #aaa;
+      text-align: left;
+    }
+
+    /* Leyenda de gestos */
+
+    #leyenda-gestos {
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid #555;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .leyenda-titulo {
+      margin-bottom: 2px;
+      color: #aaa;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .leyenda-lista {
+      display: grid;
+      grid-template-columns: auto auto;
+      column-gap: 22px;
+    }
+
+    .gesto {
+      white-space: nowrap;
+      color: #ccc;
+    }
+
+    .gesto .emoji {
+      display: inline-block;
+      width: 1.7em;
+      text-align: center;
+    }
+
+    .gesto b {
+      color: #9ee7ff;
+      font-weight: normal;
+    }
+
+    /* =====================================================
+       BOTÓN VOLVER AL MENÚ
+    ===================================================== */
+
+    #volver-menu {
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid #555;
+      border-radius: 8px;
+      color: #ccc;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    #volver-menu:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: #9ee7ff;
+      color: #fff;
+    }
+
+    #encabezado #volver-menu.apuntado {
+      outline: 2px solid rgba(0,255,255,0.8);
+      outline-offset: 3px;
+      border-color: #9ee7ff;
+      color: #fff;
+    }
+
+    /* =====================================================
+       LABORATORIO
+    ===================================================== */
+
+    #laboratorio {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background:
+        linear-gradient(
+          to bottom,
+          #252525 0%,
+          #202020 62%,
+          #161616 62%,
+          #121212 100%
+        );
+      border: 2px solid #444;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    }
+
+    /* =====================================================
+       MESA
+    ===================================================== */
+
+    #mesa {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 38%;
+      background: linear-gradient(to bottom, #3b3b3b, #292929);
+      border-top: 5px solid #555;
+    }
+
+    /* =====================================================
+       TUBO Y BULBO DE VIDRIO
+    ===================================================== */
+
+    #tubo {
+      position: absolute;
+      left: 8%;
+      top: 30%;
+      width: 66.25%;
+      height: 25%;
+      border: 2px solid transparent;
+      pointer-events: none;
+    }
+
+    #vidrio {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    #vidrio * {
+      vector-effect: non-scaling-stroke;
+    }
+
+    #vidrio-contorno {
+      fill: url(#grad-tubo);
+      stroke: rgba(205,228,242,0.85);
+      stroke-width: 2px;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 5px rgba(150,200,220,0.35));
+    }
+
+    .reflejo-borde {
+      fill: none;
+      stroke: rgba(255,255,255,0.55);
+      stroke-width: 2.5px;
+      stroke-linecap: round;
+    }
+
+    /* Escala graduada del bulbo */
+
+    .escala-marca {
+      stroke: rgba(255,255,255,0.6);
+      stroke-width: 1.2px;
+      stroke-linecap: round;
+    }
+
+    .escala-marca.mayor {
+      stroke: rgba(255,255,255,0.92);
+      stroke-width: 1.7px;
+    }
+
+    /* =====================================================
+       HAZ DE ELECTRONES
+    ===================================================== */
+
+    #haz-svg {
+      fill: none;
+      stroke: #ff3030;
+      stroke-width: 4px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter:
+        drop-shadow(0 0 3px #ff3030)
+        drop-shadow(0 0 9px rgba(255,50,50,0.75));
+    }
+
+    #punto-impacto {
+      fill: #ff8a8a;
+      filter:
+        drop-shadow(0 0 4px #ff3030)
+        drop-shadow(0 0 12px rgba(255,60,60,0.9));
+    }
+
+    /* =====================================================
+       CÁTODO
+    ===================================================== */
+
+    #catodo {
+      position: absolute;
+      left: 7%;
+      top: 39%;
+      width: 7%;
+      height: 8%;
+      background: #777;
+      border: 3px solid #aaa;
+      border-radius: 8px;
+      box-shadow: inset 0 0 8px #222;
+    }
+
+    #catodo::after {
+      content: "";
+      position: absolute;
+      right: -25px;
+      top: 50%;
+      width: 25px;
+      height: 5px;
+      transform: translateY(-50%);
+      background: #aaa;
+    }
+
+    /* =====================================================
+       PLACAS
+    ===================================================== */
+
+    .placa {
+      position: absolute;
+      left: 31%;
+      width: 32%;
+      height: 18px;
+      background:
+        linear-gradient(
+          to bottom,
+          #d7d7d7,
+          #777,
+          #c7c7c7
+        );
+      border: 2px solid #eee;
+      border-radius: 5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.7);
+      cursor: pointer;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-evenly;
+      padding: 0 6px;
+      overflow: hidden;
+    }
+
+    .placa .signo {
+      font-style: normal;
+      font-weight: 900;
+      font-size: 19px;
+      line-height: 1;
+      pointer-events: none;
+      text-shadow: 0 0 3px rgba(255,255,255,0.9);
+    }
+
+    .placa.carga-pos .signo {
+      color: #c40000;
+    }
+
+    .placa.carga-neg .signo {
+      color: #0030c8;
+    }
+
+    #placa-superior {
+      top: 31%;
+    }
+
+    #placa-inferior {
+      top: 51%;
+    }
+
+    /* Objeto seleccionado */
+
+    #laboratorio .seleccionable.seleccionada {
+      border-color: #ffff00;
+      box-shadow:
+        0 0 5px #ffff00,
+        0 0 15px rgba(255,255,0,0.7);
+    }
+
+    /* Objeto agarrado */
+
+    #laboratorio .seleccionable.agarrada {
+      border-color: #00ff88;
+      box-shadow:
+        0 0 6px #00ff88,
+        0 0 18px rgba(0,255,136,0.8);
+    }
+
+    /* Elemento apuntado */
+
+    #laboratorio .apuntado {
+      outline: 2px solid rgba(0,255,255,0.8);
+      outline-offset: 2px;
+    }
+
+    /* =====================================================
+       CURSOR VIRTUAL
+       Ahora pertenece a #pagina y puede recorrer también
+       el encabezado, sin quedar limitado al laboratorio.
+    ===================================================== */
+
+    #cursor-mano {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border: 3px solid #00ffff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 100;
+      display: none;
+      box-shadow:
+        0 0 8px #00ffff,
+        0 0 16px rgba(0,255,255,0.5);
+    }
+
+    #cursor-mano.agarrando {
+      border-color: #00ff88;
+      box-shadow:
+        0 0 8px #00ff88,
+        0 0 16px rgba(0,255,136,0.6);
+    }
+
+    /* =====================================================
+       BOTONES DEL LABORATORIO
+    ===================================================== */
+
+    .boton {
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 8px;
+      border: 2px solid #888;
+      border-radius: 6px;
+      background: #1c1c1c;
+      color: #ddd;
+      font-size: 11px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .boton.activo {
+      border-color: #43d17a;
+      color: #7dffb0;
+      box-shadow: 0 0 8px rgba(67,209,122,0.6);
+    }
+
+    /* =====================================================
+       FUENTE ELÉCTRICA
+    ===================================================== */
+
+    #fuente {
+      position: absolute;
+      left: 3%;
+      bottom: 6%;
+      width: 22%;
+      height: 27%;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #303030;
+      border: 3px solid #666;
+      border-radius: 8px;
+      box-shadow: 0 5px 12px rgba(0,0,0,0.6);
+      z-index: 2;
+    }
+
+    #fuente-titulo {
+      text-align: center;
+      font-size: 13px;
+      color: #ddd;
+    }
+
+    #fuente-fila {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    #fuente-voltaje {
+      font-size: 20px;
+      font-weight: bold;
+      color: #7dffb0;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 6px rgba(125,255,176,0.5);
+    }
+
+    #fuente.apagada #fuente-voltaje {
+      color: #666;
+      text-shadow: none;
+    }
+
+    #riel-voltaje {
+      position: relative;
+      height: 28px;
+      margin: 0 12px;
+    }
+
+    #riel-voltaje::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 6px;
+      transform: translateY(-50%);
+      background: #151515;
+      border: 1px solid #555;
+      border-radius: 3px;
+    }
+
+    #perilla {
+      position: absolute;
+      top: 50%;
+      left: 26.7%;
+      width: 24px;
+      height: 24px;
+      transform: translate(-50%, -50%);
+      border: 3px solid #ddd;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f0f0f0, #8a8a8a);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.7);
+      cursor: pointer;
+    }
+
+    #fuente-polaridades {
+      display: flex;
+      gap: 8px;
+    }
+
+    .boton-pol {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 4px 8px;
+    }
+
+    .boton-pol b {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .boton-pol.pos b {
+      color: #ff6b6b;
+    }
+
+    .boton-pol.neg b {
+      color: #6bb6ff;
+    }
+
+    /* =====================================================
+       IMÁN
+    ===================================================== */
+
+    #iman {
+      position: absolute;
+      right: 13%;
+      top: 72%;
+      width: 13%;
+      height: 20%;
+      border-radius: 10px;
+      background:
+        linear-gradient(
+          to right,
+          #555 0%,
+          #777 45%,
+          #444 45%,
+          #222 100%
+        );
+      border: 3px solid #777;
+      box-shadow: 0 5px 12px rgba(0,0,0,0.6);
+      z-index: 2;
+    }
+
+    #iman::before {
+      content: "N";
+      position: absolute;
+      left: 15%;
+      top: 40%;
+      transform: translateY(-50%);
+      font-weight: bold;
+      font-size: 20px;
+    }
+
+    #iman::after {
+      content: "S";
+      position: absolute;
+      right: 15%;
+      top: 40%;
+      transform: translateY(-50%);
+      font-weight: bold;
+      font-size: 20px;
+    }
+
+    #iman-etiqueta {
+      position: absolute;
+      left: 50%;
+      top: 8px;
+      transform: translateX(-50%);
+      color: #ddd;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    #iman-encendido {
+      position: absolute;
+      left: 50%;
+      bottom: 8px;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    #iman.encendido {
+      border-color: #5cc8ff;
+      box-shadow:
+        0 0 14px rgba(90,200,255,0.65),
+        0 5px 12px rgba(0,0,0,0.6);
+    }
+
+    /* =====================================================
+       PANEL DE MEDICIONES
+    ===================================================== */
+
+    #panel-fisica {
+      position: absolute;
+      left: 26%;
+      width: 46%;
+      bottom: 8%;
+      z-index: 3;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid #555;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .oculto {
+      display: none !important;
+    }
+
+    #fis-cabecera {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    #fis-cabecera .fis-titulo {
+      margin-bottom: 0;
+    }
+
+    #boton-fisica {
+      padding: 2px 8px;
+      font-size: 10px;
+    }
+
+    #fis-simple {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      column-gap: 18px;
+      align-items: stretch;
+    }
+
+    #fis-angulo-caja {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 8px;
+      border: 2px solid rgba(255,235,59,0.6);
+      border-radius: 8px;
+      background: rgba(255,235,59,0.07);
+      text-align: center;
+    }
+
+    .fis-angulo-titulo {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #ccc;
+    }
+
+    #s-angulo {
+      font-size: 34px;
+      font-weight: bold;
+      line-height: 1.1;
+      color: #ffeb3b;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 8px rgba(255,235,59,0.4);
+    }
+
+    #s-sentido {
+      font-size: 13px;
+      color: #ffe98a;
+    }
+
+    .txt-pos {
+      color: #ff6b6b !important;
+    }
+
+    .txt-neg {
+      color: #6bb6ff !important;
+    }
+
+    .fis-columnas {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 28px;
+    }
+
+    .fis-titulo {
+      margin-bottom: 4px;
+      color: #aaa;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .fis-fila {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .fis-fila span {
+      color: #ccc;
+    }
+
+    .fis-fila b {
+      color: #9ee7ff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #fis-estado {
+      margin-top: 4px;
+      color: #ffeb3b;
+      font-size: 12px;
+    }
+
+    /* =====================================================
+       PANEL DE INFORMACIÓN
+    ===================================================== */
+
+    #panel-info {
+      position: absolute;
+      left: 20px;
+      top: 15px;
+      z-index: 60;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.55);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    #gesture {
+      font-weight: bold;
+    }
+
+    #seleccion {
+      margin-top: 4px;
+      color: #ffeb3b;
+    }
+
+    #distance {
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    /* =====================================================
+       CÁMARA
+    ===================================================== */
+
+    #camara {
+      position: absolute;
+      right: 15px;
+      top: 15px;
+      width: 180px;
+      z-index: 70;
+    }
+
+    #video {
+      display: none;
+    }
+
+    #canvas {
+      width: 100%;
+      display: block;
+      border-radius: 8px;
+      border: 2px solid #555;
+      transform: scaleX(-1);
+      opacity: 0.18;
+    }
+
+    #toggleLandmarks {
+      position: absolute;
+      right: 5px;
+      top: 5px;
+      z-index: 80;
+      padding: 5px 8px;
+      border: none;
+      border-radius: 5px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div id="pagina">
+
+    <header id="encabezado">
+
+      <div id="titulos">
+        <h1>Laboratorio Imposible</h1>
+        <div id="subtitulo">Experimento de Thomson — Rayos catódicos</div>
+      </div>
+
+      <!-- NUEVO: botón para volver al menú principal -->
+      <button id="volver-menu" type="button">← Volver al menú</button>
+
+      <div id="leyenda-gestos">
+        <div class="leyenda-titulo">GESTOS</div>
+        <div class="leyenda-lista">
+          <div class="gesto"><span class="emoji">☝️</span><b>Índice:</b> seleccionar / pulsar botones</div>
+          <div class="gesto"><span class="emoji">👍</span><b>Pulgar arriba:</b> polaridad positiva (+)</div>
+          <div class="gesto"><span class="emoji">🤏</span><b>Pinza:</b> mover lo seleccionado</div>
+          <div class="gesto"><span class="emoji">👎</span><b>Pulgar abajo:</b> polaridad negativa (−)</div>
+          <div class="gesto"><span class="emoji">✊</span><b>Puño:</b> prender / apagar fuente o imán</div>
+        </div>
+      </div>
+
+    </header>
+
+    <div id="laboratorio">
+
+      <div id="mesa"></div>
+
+      <!-- TUBO + BULBO DE VIDRIO -->
+      <svg id="vidrio" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+
+        <defs>
+
+          <linearGradient id="grad-tubo" gradientUnits="userSpaceOnUse" x1="0" y1="270" x2="0" y2="495">
+            <stop offset="0" stop-color="#bee6f5" stop-opacity="0.14"/>
+            <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.03"/>
+            <stop offset="1" stop-color="#96c8dc" stop-opacity="0.12"/>
+          </linearGradient>
+
+          <radialGradient id="grad-esfera" gradientUnits="userSpaceOnUse" cx="1340" cy="382.5" r="189">
+            <stop offset="0" stop-color="#c8e6f0" stop-opacity="0.04"/>
+            <stop offset="0.75" stop-color="#b4d7e6" stop-opacity="0.08"/>
+            <stop offset="1" stop-color="#a0cde1" stop-opacity="0.20"/>
+          </radialGradient>
+
+          <linearGradient id="grad-mascara" gradientUnits="userSpaceOnUse" x1="1170" y1="0" x2="1300" y2="0">
+            <stop offset="0" stop-color="#000"/>
+            <stop offset="1" stop-color="#fff"/>
+          </linearGradient>
+
+          <mask id="mascara-esfera" maskUnits="userSpaceOnUse" x="1100" y="150" width="500" height="450">
+            <rect x="1100" y="150" width="500" height="450" fill="url(#grad-mascara)"/>
+          </mask>
+
+        </defs>
+
+        <!-- Relleno de la esfera -->
+        <circle cx="1340" cy="382.5" r="189" fill="url(#grad-esfera)" mask="url(#mascara-esfera)"/>
+
+        <!-- Contorno: tubo + cuello + esfera -->
+        <path id="vidrio-contorno"
+          d="M 1188 270 L 208 270 A 80 80 0 0 0 128 350 L 128 415
+             A 80 80 0 0 0 208 495 L 1188 495 A 189 189 0 1 0 1188 270 Z"/>
+
+        <!-- Reflejo del vidrio -->
+        <path class="reflejo-borde" d="M 1208.5 264.1 A 177 177 0 0 1 1294.2 211.5"/>
+
+        <!-- Escala graduada -->
+        <g id="escala-bulbo" data-cx="1340" data-cy="382.5" data-r="189"></g>
+
+        <!-- Haz de electrones -->
+        <path id="haz-svg" d=""/>
+
+        <!-- Punto de impacto -->
+        <circle id="punto-impacto" r="6" cx="0" cy="0" style="display:none"/>
+
+      </svg>
+
+      <!-- Caja invisible del tubo -->
+      <div id="tubo"></div>
+
+      <div id="catodo"></div>
+
+      <!-- PLACA SUPERIOR -->
+      <div id="placa-superior" class="placa seleccionable"></div>
+
+      <!-- PLACA INFERIOR -->
+      <div id="placa-inferior" class="placa seleccionable"></div>
+
+      <!-- FUENTE ELÉCTRICA -->
+      <div id="fuente" class="apagada seleccionable">
+
+        <div id="fuente-titulo">FUENTE ELÉCTRICA</div>
+
+        <div id="fuente-fila">
+          <div id="fuente-encendido" class="boton">APAGADA</div>
+          <div id="fuente-voltaje">400 V</div>
+        </div>
+
+        <div id="riel-voltaje">
+          <div id="perilla" class="seleccionable"></div>
+        </div>
+
+        <div id="fuente-polaridades">
+          <div id="pol-sup" class="boton boton-pol pos"><span>PLACA SUP.</span><b>+</b></div>
+          <div id="pol-inf" class="boton boton-pol neg"><span>PLACA INF.</span><b>−</b></div>
+        </div>
+
+      </div>
+
+      <!-- IMÁN -->
+      <div id="iman" class="seleccionable">
+        <div id="iman-etiqueta">IMÁN</div>
+        <div id="iman-encendido" class="boton">APAGADO</div>
+      </div>
+
+      <!-- MEDICIONES -->
+      <div id="panel-fisica">
+
+        <div id="fis-cabecera">
+          <div class="fis-titulo" id="fis-titulo">MEDICIONES</div>
+          <div id="boton-fisica" class="boton">DATOS FÍSICOS</div>
+        </div>
+
+        <!-- Vista simple -->
+        <div id="fis-simple">
+
+          <div class="fis-lista">
+            <div class="fis-fila"><span>Carga placa superior</span><b id="s-carga-sup">--</b></div>
+            <div class="fis-fila"><span>Carga placa inferior</span><b id="s-carga-inf">--</b></div>
+            <div class="fis-fila"><span>Voltaje de la fuente</span><b id="s-voltaje">--</b></div>
+            <div class="fis-fila"><span>Distancia entre placas</span><b id="s-dplacas">--</b></div>
+            <div class="fis-fila"><span>Imán</span><b id="s-iman">--</b></div>
+            <div class="fis-fila"><span>Distancia imán–bulbo</span><b id="s-dim">--</b></div>
+          </div>
+
+          <div id="fis-angulo-caja">
+            <div class="fis-angulo-titulo">ÁNGULO DE DESVIACIÓN</div>
+            <div id="s-angulo">--</div>
+            <div id="s-sentido"></div>
+          </div>
+
+        </div>
+
+        <!-- Vista con los datos físicos -->
+        <div id="fis-fisica" class="oculto">
+
+          <div class="fis-columnas">
+
+            <div class="fis-col">
+              <div class="fis-fila"><span>Voltaje acelerador</span><b id="fis-vacel">--</b></div>
+              <div class="fis-fila"><span>Velocidad electrones</span><b id="fis-v0">--</b></div>
+              <div class="fis-fila"><span>Voltaje entre placas</span><b id="fis-vplacas">--</b></div>
+              <div class="fis-fila"><span>Separación placas</span><b id="fis-d">--</b></div>
+              <div class="fis-fila"><span>Campo eléctrico E</span><b id="fis-e">--</b></div>
+            </div>
+
+            <div class="fis-col">
+              <div class="fis-fila"><span>Distancia imán–bulbo</span><b id="fis-dim">--</b></div>
+              <div class="fis-fila"><span>Campo magnético B</span><b id="fis-b">--</b></div>
+              <div class="fis-fila"><span>Relación E / B</span><b id="fis-eb">--</b></div>
+              <div class="fis-fila"><span>Ángulo de desviación</span><b id="fis-angulo">--</b></div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div id="fis-estado"></div>
+      </div>
+
+      <!-- INFORMACIÓN -->
+      <div id="panel-info">
+        <div id="gesture">Esperando mano...</div>
+        <div id="seleccion">SELECCIONADO: ninguno</div>
+        <div id="distance">Distancia: --</div>
+      </div>
+
+      <!-- CÁMARA -->
+      <div id="camara">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" width="640" height="480"></canvas>
+        <button id="toggleLandmarks">Ocultar puntos</button>
+      </div>
+
+    </div>
+
+    <!--
+      El cursor está fuera de #laboratorio, pero dentro de #pagina.
+      Así puede mostrarse también sobre el encabezado.
+    -->
+    <div id="cursor-mano"></div>
+
+  </div>
+
+
+  <script>
+
+    /* =====================================================
+       ELEMENTOS
+    ===================================================== */
+
+    const pagina = document.getElementById("pagina");
+    const botonVolver = document.getElementById("volver-menu");
+
+    const laboratorio = document.getElementById("laboratorio");
+    const placaSuperior = document.getElementById("placa-superior");
+    const placaInferior = document.getElementById("placa-inferior");
+    const iman = document.getElementById("iman");
+    const perilla = document.getElementById("perilla");
+    const fuente = document.getElementById("fuente");
+    const botonFuente = document.getElementById("fuente-encendido");
+    const botonPolSup = document.getElementById("pol-sup");
+    const botonPolInf = document.getElementById("pol-inf");
+    const botonIman = document.getElementById("iman-encendido");
+    const textoVoltajeFuente = document.getElementById("fuente-voltaje");
+    const botonFisica = document.getElementById("boton-fisica");
+    const vistaSimple = document.getElementById("fis-simple");
+    const vistaFisica = document.getElementById("fis-fisica");
+
+    const cursor = document.getElementById("cursor-mano");
+    const gestureElement = document.getElementById("gesture");
+    const seleccionElement = document.getElementById("seleccion");
+    const distanceElement = document.getElementById("distance");
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const tubo = document.getElementById("tubo");
+
+    const PLACAS = [placaSuperior, placaInferior];
+
+    /*
+      Objetos que se seleccionan con ☝️ y se mueven con 🤏.
+      Los botones se activan apuntándolos con ☝️.
+    */
+
+    const SELECCIONABLES = [
+      placaSuperior,
+      placaInferior,
+      iman,
+      perilla,
+      fuente
+    ];
+
+    const MOVIBLES = new Set([
+      placaSuperior,
+      placaInferior,
+      iman,
+      perilla,
+      fuente
+    ]);
+
+    /*
+      El botón volver se incorpora a BOTONES para que el gesto
+      de señalar pueda detectarlo en el encabezado.
+    */
+
+    const BOTONES = [
+      botonFuente,
+      botonPolSup,
+      botonPolInf,
+      botonIman,
+      botonFisica,
+      botonVolver
+    ];
+
+    const NOMBRES = new Map([
+      [placaSuperior, "PLACA SUPERIOR"],
+      [placaInferior, "PLACA INFERIOR"],
+      [iman, "IMÁN"],
+      [perilla, "PERILLA DE VOLTAJE"],
+      [fuente, "FUENTE ELÉCTRICA"]
+    ]);
+
+    /* =====================================================
+       ACCIONES DE LOS BOTONES
+    ===================================================== */
+
+    const ACCIONES_BOTON = new Map([
+      [botonFuente, alternarFuente],
+      [botonPolSup, alternarPolaridadSuperior],
+      [botonPolInf, alternarPolaridadInferior],
+      [botonIman, alternarIman],
+      [botonFisica, alternarVistaFisica],
+      [botonVolver, volverAlMenu]
+    ]);
+
+    function volverAlMenu() {
+      window.location.href = "./index.html";
+    }
+
+    /*
+      Todos los botones responden al mouse y al gesto ☝️.
+    */
+
+    for (const [boton, accion] of ACCIONES_BOTON) {
+      boton.addEventListener("click", accion);
+    }
+
+
+    /* =====================================================
+       NOMBRE DE LOS OBJETOS
+    ===================================================== */
+
+    function textoCarga(signo) {
+      return signo > 0 ? "+" : "−";
+    }
+
+    function nombreConCarga(elemento) {
+
+      if (elemento === placaSuperior) {
+        return "PLACA SUPERIOR (" + textoCarga(polaridadSuperior) + ")";
+      }
+
+      if (elemento === placaInferior) {
+        return "PLACA INFERIOR (" + textoCarga(polaridadInferior) + ")";
+      }
+
+      if (elemento === fuente) {
+        return "FUENTE ELÉCTRICA (" +
+          (fuenteEncendida ? "encendida" : "apagada") + ")";
+      }
+
+      if (elemento === iman) {
+        return "IMÁN (" + (imanEncendido ? "encendido" : "apagado") + ")";
+      }
+
+      return NOMBRES.get(elemento);
+    }
+
+
+    /* =====================================================
+       LANDMARKS (BOTÓN MOSTRAR / OCULTAR)
+    ===================================================== */
+
+    let mostrarLandmarks = true;
+
+    const toggleButton = document.getElementById("toggleLandmarks");
+
+    toggleButton.addEventListener("click", () => {
+
+      mostrarLandmarks = !mostrarLandmarks;
+
+      toggleButton.textContent =
+        mostrarLandmarks ? "Ocultar puntos" : "Mostrar puntos";
+
+    });
+
+
+    /* =====================================================
+       PINCH (VALORES PROBADOS: NO MODIFICAR)
+    ===================================================== */
+
+    const HISTORIAL_TAMANIO = 5;
+    const PINCH_THRESHOLD = 0.060;
+    const RELEASE_THRESHOLD = 0.080;
+
+    let pinchActivo = false;
+
+    const historialDistancias = [];
+
+    function distancia(p1, p2) {
+
+      const dx = p1.x - p2.x;
+      const dy = p1.y - p2.y;
+      const dz = p1.z - p2.z;
+
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    function distanciaSuavizada(valor) {
+
+      historialDistancias.push(valor);
+
+      if (historialDistancias.length > HISTORIAL_TAMANIO) {
+        historialDistancias.shift();
+      }
+
+      const suma = historialDistancias.reduce((a, b) => a + b, 0);
+
+      return suma / historialDistancias.length;
+    }
+
+
+    /* =====================================================
+       GESTO ☝️ SELECCIONAR / APUNTAR
+    ===================================================== */
+
+    function indiceExtendido(landmarks) {
+      return landmarks[8].y < landmarks[6].y;
+    }
+
+    function dedoMedioCerrado(landmarks) {
+      return landmarks[12].y > landmarks[10].y;
+    }
+
+    function anularCerrado(landmarks) {
+      return landmarks[16].y > landmarks[14].y;
+    }
+
+    function meñiqueCerrado(landmarks) {
+      return landmarks[20].y > landmarks[18].y;
+    }
+
+    function gestoSenalar(landmarks) {
+      return (
+        indiceExtendido(landmarks) &&
+        dedoMedioCerrado(landmarks) &&
+        anularCerrado(landmarks) &&
+        meñiqueCerrado(landmarks)
+      );
+    }
+
+
+    /* =====================================================
+       GESTO 👍 / 👎
+    ===================================================== */
+
+    function distancia2D(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function dedoCurvado(landmarks, punta, articulacion) {
+      return (
+        distancia2D(landmarks[0], landmarks[punta]) <
+        distancia2D(landmarks[0], landmarks[articulacion])
+      );
+    }
+
+    function puñoCerrado(landmarks) {
+      return (
+        dedoCurvado(landmarks, 8, 6) &&
+        dedoCurvado(landmarks, 12, 10) &&
+        dedoCurvado(landmarks, 16, 14) &&
+        dedoCurvado(landmarks, 20, 18)
+      );
+    }
+
+    function gestoPulgar(landmarks) {
+
+      if (!puñoCerrado(landmarks)) {
+        return null;
+      }
+
+      const palma = distancia2D(landmarks[0], landmarks[9]);
+
+      const vx = landmarks[4].x - landmarks[2].x;
+      const vy = landmarks[4].y - landmarks[2].y;
+
+      const largo = Math.hypot(vx, vy);
+
+      const estirado =
+        largo > 0.5 * palma &&
+        distancia2D(landmarks[4], landmarks[5]) > 0.5 * palma;
+
+      if (!estirado) {
+        return null;
+      }
+
+      if (Math.abs(vy) < 0.7 * largo) {
+        return null;
+      }
+
+      return vy < 0 ? "arriba" : "abajo";
+    }
+
+
+    /* =====================================================
+       CENTRO DE LA PALMA
+    ===================================================== */
+
+    function centroPalma(landmarks) {
+
+      const puntos = [0, 5, 9, 13, 17];
+
+      let sumaX = 0;
+      let sumaY = 0;
+
+      for (const i of puntos) {
+        sumaX += landmarks[i].x;
+        sumaY += landmarks[i].y;
+      }
+
+      return {
+        x: sumaX / puntos.length,
+        y: sumaY / puntos.length
+      };
+    }
+
+
+    /* =====================================================
+       ESTADO DE INTERACCIÓN
+    ===================================================== */
+
+    let objetoSeleccionado = null;
+    let objetoAgarrado = null;
+
+    const FRAMES_CONFIRMAR_SELECCION = 6;
+
+    let hoverElemento = null;
+    let hoverFrames = 0;
+    let hoverDisparado = false;
+
+    const FRAMES_CONFIRMAR_PULGAR = 5;
+
+    let pulgarActual = null;
+    let pulgarFrames = 0;
+    let pulgarDisparado = false;
+
+    const FRAMES_CONFIRMAR_PUNO = 10;
+
+    let punoFrames = 0;
+    let punoDisparado = false;
+
+
+    /* =====================================================
+       APARIENCIA
+    ===================================================== */
+
+    function aplicarEstadoVisual() {
+
+      for (const el of SELECCIONABLES) {
+
+        el.classList.toggle(
+          "agarrada",
+          el === objetoAgarrado ||
+          (el === perilla && objetoAgarrado === fuente)
+        );
+
+        el.classList.toggle(
+          "seleccionada",
+          el === objetoSeleccionado && el !== objetoAgarrado
+        );
+
+      }
+
+      cursor.classList.toggle("agarrando", objetoAgarrado !== null);
+
+      actualizarTextoSeleccion();
+    }
+
+    function actualizarTextoSeleccion() {
+
+      seleccionElement.textContent =
+        objetoSeleccionado !== null
+          ? "SELECCIONADO: " + nombreConCarga(objetoSeleccionado) + " ☝️"
+          : "SELECCIONADO: ninguno";
+    }
+
+    function marcarApuntado(elemento) {
+
+      for (const el of SELECCIONABLES) {
+        el.classList.toggle("apuntado", el === elemento);
+      }
+
+      for (const el of BOTONES) {
+        el.classList.toggle("apuntado", el === elemento);
+      }
+
+    }
+
+
+    /* =====================================================
+       CONVERSIÓN DE LA MANO
+       IMPORTANTE:
+       El cursor se calcula respecto de #pagina, no de
+       #laboratorio, para alcanzar el encabezado.
+    ===================================================== */
+
+    function posicionManoEnPagina(landmark) {
+
+      /*
+        MediaPipe:
+        x = 0 izquierda, x = 1 derecha.
+
+        La escena actúa como espejo, por eso se invierte X.
+        Y no se invierte.
+      */
+
+      return {
+        x: (1 - landmark.x) * pagina.clientWidth,
+        y: landmark.y * pagina.clientHeight
+      };
+    }
+
+
+    /* =====================================================
+       ¿QUÉ HAY BAJO EL CURSOR?
+       Los botones tienen prioridad.
+       Las coordenadas se calculan respecto de #pagina,
+       por lo que pueden incluir elementos del encabezado.
+    ===================================================== */
+
+    function elementoBajoCursor(x, y) {
+
+      const paginaRect = pagina.getBoundingClientRect();
+
+      function buscar(lista, margen) {
+
+        let mejor = null;
+        let mejorDistancia = Infinity;
+
+        for (const el of lista) {
+
+          const rect = el.getBoundingClientRect();
+
+          const izquierda =
+            rect.left - paginaRect.left - pagina.clientLeft;
+
+          const derecha =
+            rect.right - paginaRect.left - pagina.clientLeft;
+
+          const arriba =
+            rect.top - paginaRect.top - pagina.clientTop;
+
+          const abajo =
+            rect.bottom - paginaRect.top - pagina.clientTop;
+
+          const dentro =
+            x >= izquierda - margen &&
+            x <= derecha + margen &&
+            y >= arriba - margen &&
+            y <= abajo + margen;
+
+          if (!dentro) {
+            continue;
+          }
+
+          const d = Math.hypot(
+            x - (izquierda + derecha) / 2,
+            y - (arriba + abajo) / 2
+          );
+
+          if (d < mejorDistancia) {
+            mejorDistancia = d;
+            mejor = el;
+          }
+
+        }
+
+        return mejor;
+      }
+
+      return buscar(BOTONES, 6) || buscar(SELECCIONABLES, 15);
+    }
+
+
+    /* =====================================================
+       SELECCIÓN / DESELECCIÓN Y BOTONES CON ☝️
+    ===================================================== */
+
+    function reiniciarHover() {
+      hoverElemento = null;
+      hoverFrames = 0;
+      hoverDisparado = false;
+      marcarApuntado(null);
+    }
+
+    function bloquearHover(elemento) {
+      hoverElemento = elemento;
+      hoverFrames = 0;
+      hoverDisparado = true;
+    }
+
+    function procesarSenalar(elemento) {
+
+      /*
+        Señalar al vacío no hace nada:
+        la selección actual se conserva.
+      */
+
+      if (elemento === null) {
+        reiniciarHover();
+        return;
+      }
+
+      if (elemento !== hoverElemento) {
+        hoverElemento = elemento;
+        hoverFrames = 0;
+        hoverDisparado = false;
+        marcarApuntado(elemento);
+      }
+
+      hoverFrames++;
+
+      if (!hoverDisparado && hoverFrames >= FRAMES_CONFIRMAR_SELECCION) {
+
+        hoverDisparado = true;
+
+        if (ACCIONES_BOTON.has(elemento)) {
+
+          ACCIONES_BOTON.get(elemento)();
+
+        } else {
+
+          objetoSeleccionado =
+            objetoSeleccionado === elemento
+              ? null
+              : elemento;
+
+          aplicarEstadoVisual();
+
+        }
+
+      }
+
+    }
+
+
+    /* =====================================================
+       CARGA DE LAS PLACAS CON 👍 / 👎
+    ===================================================== */
+
+    function procesarGestoPulgar(gesto) {
+
+      if (gesto === null) {
+        pulgarActual = null;
+        pulgarFrames = 0;
+        pulgarDisparado = false;
+        return;
+      }
+
+      if (gesto !== pulgarActual) {
+        pulgarActual = gesto;
+        pulgarFrames = 0;
+        pulgarDisparado = false;
+      }
+
+      pulgarFrames++;
+
+      if (!pulgarDisparado && pulgarFrames >= FRAMES_CONFIRMAR_PULGAR) {
+
+        pulgarDisparado = true;
+
+        asignarCargaPlacaSeleccionada(gesto === "arriba" ? 1 : -1);
+
+      }
+
+    }
+
+
+    /* =====================================================
+       PRENDER / APAGAR CON ✊
+    ===================================================== */
+
+    function procesarGestoPuno(activo) {
+
+      if (!activo) {
+        punoFrames = 0;
+        punoDisparado = false;
+        return;
+      }
+
+      punoFrames++;
+
+      if (!punoDisparado && punoFrames >= FRAMES_CONFIRMAR_PUNO) {
+
+        punoDisparado = true;
+
+        alternarInstrumentoSeleccionado();
+
+      }
+
+    }
+
+    function alternarInstrumentoSeleccionado() {
+
+      if (objetoSeleccionado === fuente) {
+        alternarFuente();
+      } else if (objetoSeleccionado === iman) {
+        alternarIman();
+      }
+
+    }
+
+
+    /*
+      La carga se asigna a la placa seleccionada, sin importar
+      dónde esté el cursor.
+    */
+
+    function asignarCargaPlacaSeleccionada(signo) {
+
+      if (objetoSeleccionado === placaSuperior) {
+        polaridadSuperior = signo;
+      } else if (objetoSeleccionado === placaInferior) {
+        polaridadInferior = signo;
+      } else {
+        return;
+      }
+
+      actualizarHaz();
+    }
+
+
+    /* =====================================================
+       AGARRAR / SOLTAR (PINZA 🤏)
+    ===================================================== */
+
+    function agarrarObjeto(landmarks) {
+
+      if (
+        objetoAgarrado !== null ||
+        objetoSeleccionado === null ||
+        !MOVIBLES.has(objetoSeleccionado)
+      ) {
+        return;
+      }
+
+      objetoAgarrado = objetoSeleccionado;
+
+      ultimaMano = centroPalma(landmarks);
+
+      reiniciarHover();
+
+      aplicarEstadoVisual();
+    }
+
+    function soltarObjeto() {
+
+      if (objetoAgarrado === null) {
+        return;
+      }
+
+      const objetoSoltado = objetoAgarrado;
+
+      objetoAgarrado = null;
+
+      bloquearHover(objetoSoltado);
+
+      aplicarEstadoVisual();
+    }
+
+
+    /* =====================================================
+       ESTADO DE LOS INSTRUMENTOS
+    ===================================================== */
+
+    let fuenteEncendida = false;
+
+    let polaridadSuperior = 1;
+    let polaridadInferior = -1;
+
+    const VOLTAJE_MAX_FUENTE = 1500;
+
+    let perillaPct = 26.7;
+    let voltajeFuente = 400;
+
+    let imanEncendido = false;
+
+    let imanTopPct = 72;
+
+    const IMAN_TOP_MIN = 66;
+    const IMAN_TOP_MAX = 79;
+
+    let posicionSuperior = 31;
+    let posicionInferior = 51;
+
+    let ultimaMano = { x: 0, y: 0 };
+
+    let modoFisico = false;
+
+
+    /* Acciones de los botones */
+
+    function alternarFuente() {
+      fuenteEncendida = !fuenteEncendida;
+      actualizarHaz();
+    }
+
+    function alternarPolaridadSuperior() {
+      polaridadSuperior = -polaridadSuperior;
+      actualizarHaz();
+    }
+
+    function alternarPolaridadInferior() {
+      polaridadInferior = -polaridadInferior;
+      actualizarHaz();
+    }
+
+    function alternarIman() {
+      imanEncendido = !imanEncendido;
+      actualizarHaz();
+    }
+
+    function alternarVistaFisica() {
+      modoFisico = !modoFisico;
+      actualizarHaz();
+    }
+
+
+    /* =====================================================
+       MOVER OBJETOS
+    ===================================================== */
+
+    const LIMITES_PLACA = new Map([
+      [placaSuperior, { min: 26, max: 46 }],
+      [placaInferior, { min: 40, max: 58 }]
+    ]);
+
+    const GANANCIA_MOVIMIENTO = 1;
+    const GANANCIA_IMAN = 0.5;
+    const GANANCIA_PERILLA = 2;
+
+
+    function limitesPlaca(placa) {
+
+      const alto = laboratorio.clientHeight;
+
+      const interiorArriba = tubo.offsetTop + tubo.clientTop;
+
+      const interiorAbajo = interiorArriba + tubo.clientHeight;
+
+      const tuboMin = (interiorArriba / alto) * 100;
+
+      const tuboMax = ((interiorAbajo - placa.offsetHeight) / alto) * 100;
+
+      const base = LIMITES_PLACA.get(placa);
+
+      let min = Math.max(base.min, tuboMin);
+      let max = Math.min(base.max, tuboMax);
+
+      const hazPct = (EJE_Y / VISTA_ALTO) * 100;
+      const margenPct = (MARGEN_HAZ / VISTA_ALTO) * 100;
+      const espesorPct = (placa.offsetHeight / alto) * 100;
+
+      if (placa === placaSuperior) {
+        max = Math.min(max, hazPct - margenPct - espesorPct);
+      } else {
+        min = Math.max(min, hazPct + margenPct);
+      }
+
+      return { min, max };
+    }
+
+
+    function acotar(valor, minimo, maximo) {
+      return Math.max(minimo, Math.min(valor, maximo));
+    }
+
+
+    function moverObjeto(landmarks) {
+
+      if (objetoAgarrado === null) {
+        return;
+      }
+
+      const mano = centroPalma(landmarks);
+
+      const deltaY = (mano.y - ultimaMano.y) * 100;
+      const deltaX = -(mano.x - ultimaMano.x) * 100;
+
+      ultimaMano = mano;
+
+      if (objetoAgarrado === perilla || objetoAgarrado === fuente) {
+
+        perillaPct = acotar(
+          perillaPct + deltaX * GANANCIA_PERILLA,
+          0,
+          100
+        );
+
+        perilla.style.left = perillaPct + "%";
+
+      } else if (objetoAgarrado === iman) {
+
+        imanTopPct = acotar(
+          imanTopPct + deltaY * GANANCIA_IMAN,
+          IMAN_TOP_MIN,
+          IMAN_TOP_MAX
+        );
+
+        iman.style.top = imanTopPct + "%";
+
+      } else {
+
+        const limites = limitesPlaca(objetoAgarrado);
+
+        if (objetoAgarrado === placaSuperior) {
+
+          posicionSuperior = acotar(
+            posicionSuperior + deltaY * GANANCIA_MOVIMIENTO,
+            limites.min,
+            limites.max
+          );
+
+          placaSuperior.style.top = posicionSuperior + "%";
+
+        } else {
+
+          posicionInferior = acotar(
+            posicionInferior + deltaY * GANANCIA_MOVIMIENTO,
+            limites.min,
+            limites.max
+          );
+
+          placaInferior.style.top = posicionInferior + "%";
+
+        }
+
+      }
+
+      actualizarHaz();
+    }
+
+
+    /* =====================================================
+       FÍSICA DEL HAZ (UNIDADES REALES, SI)
+    ===================================================== */
+
+    const CARGA_ELECTRON = 1.602176634e-19;
+    const MASA_ELECTRON = 9.1093837015e-31;
+
+    const VOLTAJE_ACELERADOR = 2000;
+
+    let voltajePlacas = 0;
+
+    const LARGO_PLACAS_M = 0.05;
+
+    const B_MAX = 3e-3;
+    const LARGO_CAMPO_MAGNETICO_M = 0.05;
+
+    const VELOCIDAD_ELECTRONES = Math.sqrt(
+      2 * CARGA_ELECTRON * VOLTAJE_ACELERADOR / MASA_ELECTRON
+    );
+
+
+    /* Geometría del dibujo, en unidades del SVG (1600 × 900) */
+
+    const VISTA_ANCHO = 1600;
+    const VISTA_ALTO = 900;
+
+    const EJE_Y = 382.5;
+    const HAZ_X0 = 224;
+    const CUELLO_X = 1188;
+    const MARGEN_HAZ = 8;
+
+    const ESCALA_MAX_GRADOS = 50;
+
+    const grupoEscala = document.getElementById("escala-bulbo");
+
+    const ESFERA = {
+      cx: parseFloat(grupoEscala.dataset.cx),
+      cy: parseFloat(grupoEscala.dataset.cy),
+      r: parseFloat(grupoEscala.dataset.r)
+    };
+
+    const BULBO_ABAJO_Y = ESFERA.cy + ESFERA.r;
+
+    const IMAN_DISTANCIA_MIN =
+      (IMAN_TOP_MIN / 100) * VISTA_ALTO - ESFERA.cy;
+
+    const hazSvg = document.getElementById("haz-svg");
+    const puntoImpacto = document.getElementById("punto-impacto");
+
+
+    function geometriaPlaca(placa, posicionPct) {
+
+      const kx = VISTA_ANCHO / laboratorio.clientWidth;
+      const ky = VISTA_ALTO / laboratorio.clientHeight;
+
+      const arriba = (posicionPct / 100) * VISTA_ALTO;
+
+      return {
+        x0: placa.offsetLeft * kx,
+        x1: (placa.offsetLeft + placa.offsetWidth) * kx,
+        y0: arriba,
+        y1: arriba + placa.offsetHeight * ky
+      };
+    }
+
+
+    function arcoEnPantalla(theta) {
+
+      const t = Math.abs(theta);
+
+      if (t < 1e-6) {
+        return {
+          rho: Infinity,
+          x: ESFERA.cx + ESFERA.r,
+          y: EJE_Y
+        };
+      }
+
+      const signo = Math.sign(theta);
+
+      const dx0 = CUELLO_X - ESFERA.cx;
+
+      const vers = 2 * Math.pow(Math.sin(t / 2), 2);
+
+      const a = 2 * vers;
+      const b = 2 * Math.sin(t) * dx0;
+      const c = dx0 * dx0 - ESFERA.r * ESFERA.r;
+
+      const rho = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
+
+      return {
+        rho: rho,
+        x: CUELLO_X + rho * Math.sin(t),
+        y: EJE_Y - signo * rho * vers
+      };
+    }
+
+
+    /* =====================================================
+       ESCALA GRADUADA DEL BULBO
+    ===================================================== */
+
+    function crearEscala() {
+
+      const NS = "http://www.w3.org/2000/svg";
+
+      for (
+        let grados = -ESCALA_MAX_GRADOS;
+        grados <= ESCALA_MAX_GRADOS;
+        grados += 2
+      ) {
+
+        const mayor = grados % 10 === 0;
+
+        const largo = mayor ? 16 : 8;
+
+        const q = arcoEnPantalla(grados * Math.PI / 180);
+
+        const ux = (ESFERA.cx - q.x) / ESFERA.r;
+        const uy = (ESFERA.cy - q.y) / ESFERA.r;
+
+        const marca = document.createElementNS(NS, "line");
+
+        marca.setAttribute("x1", q.x);
+        marca.setAttribute("y1", q.y);
+        marca.setAttribute("x2", q.x + largo * ux);
+        marca.setAttribute("y2", q.y + largo * uy);
+
+        marca.setAttribute(
+          "class",
+          mayor ? "escala-marca mayor" : "escala-marca"
+        );
+
+        grupoEscala.appendChild(marca);
+
+      }
+
+    }
+
+
+    /* =====================================================
+       TRAYECTORIA DEL HAZ
+    ===================================================== */
+
+    function calcularHaz() {
+
+      const sup = geometriaPlaca(placaSuperior, posicionSuperior);
+      const inf = geometriaPlaca(placaInferior, posicionInferior);
+
+      const metrosPorUnidad = LARGO_PLACAS_M / (sup.x1 - sup.x0);
+
+      const resultado = {
+        trazado: "",
+        impacto: null,
+        estado: "recto",
+        angulo: 0,
+        separacion: null,
+        campo: null,
+        campoMagnetico: 0,
+        distanciaIman: 0
+      };
+
+
+      /* Campo eléctrico de las placas */
+
+      const separacion = (inf.y0 - sup.y1) * metrosPorUnidad;
+
+      let tangenteE = 0;
+
+      if (separacion > 0) {
+
+        resultado.separacion = separacion;
+        resultado.campo = voltajePlacas / separacion;
+
+        tangenteE =
+          (voltajePlacas * LARGO_PLACAS_M) /
+          (2 * separacion * VOLTAJE_ACELERADOR);
+
+      }
+
+
+      /* Campo magnético del imán */
+
+      const imanArriba = (imanTopPct / 100) * VISTA_ALTO;
+
+      resultado.distanciaIman =
+        Math.max(imanArriba - BULBO_ABAJO_Y, 0) * metrosPorUnidad;
+
+      const distanciaCentro =
+        Math.max(imanArriba - ESFERA.cy, IMAN_DISTANCIA_MIN);
+
+      let tangenteB = 0;
+
+      if (imanEncendido) {
+
+        const razon = IMAN_DISTANCIA_MIN / distanciaCentro;
+
+        resultado.campoMagnetico = B_MAX * razon * razon * razon;
+
+        tangenteB =
+          (CARGA_ELECTRON / MASA_ELECTRON) *
+          resultado.campoMagnetico *
+          LARGO_CAMPO_MAGNETICO_M /
+          VELOCIDAD_ELECTRONES;
+
+      }
+
+
+      /* Desviación total */
+
+      const theta = Math.atan(tangenteE) - Math.atan(tangenteB);
+
+      resultado.angulo = theta * 180 / Math.PI;
+
+      const hayE = Math.abs(tangenteE) > 1e-9;
+      const hayB = tangenteB > 1e-9;
+
+      if (Math.abs(resultado.angulo) > ESCALA_MAX_GRADOS + 0.05) {
+        resultado.estado = "fuera";
+      } else if (hayE && hayB && Math.abs(resultado.angulo) < 1) {
+        resultado.estado = "equilibrado";
+      } else if (!hayE && !hayB) {
+        resultado.estado = "recto";
+      } else {
+        resultado.estado = "pantalla";
+      }
+
+
+      /* Tramo recto */
+
+      let trazado =
+        "M " + HAZ_X0 + " " + EJE_Y +
+        " L " + CUELLO_X + " " + EJE_Y;
+
+      /* Tramo curvo */
+
+      const q = arcoEnPantalla(theta);
+
+      if (q.rho === Infinity) {
+
+        trazado += " L " + q.x.toFixed(1) + " " + q.y.toFixed(1);
+
+      } else {
+
+        const sentido = theta > 0 ? 0 : 1;
+
+        trazado +=
+          " A " + q.rho.toFixed(2) + " " + q.rho.toFixed(2) +
+          " 0 0 " + sentido + " " +
+          q.x.toFixed(1) + " " + q.y.toFixed(1);
+
+      }
+
+      resultado.trazado = trazado;
+      resultado.impacto = q;
+
+      return resultado;
+    }
+
+
+    function formatear(valor, decimales) {
+      return valor.toFixed(decimales).replace(".", ",");
+    }
+
+
+    const TEXTO_ESTADO = {
+      recto: "Sin campos activos: el haz va recto.",
+      pantalla: "El haz llega a la pantalla.",
+      fuera: "El haz llega a la pantalla, fuera de la escala graduada.",
+      equilibrado: "¡Campos equilibrados! El haz va casi recto: v = E / B."
+    };
+
+    const TEXTO_ESTADO_SIMPLE = {
+      recto: "Sin campos activos: el rayo va recto.",
+      pantalla: "El rayo se desvía y llega a la pantalla.",
+      fuera: "El rayo llega a la pantalla, fuera de la escala graduada.",
+      equilibrado: "¡El campo eléctrico y el imán se compensan: el rayo casi no se desvía!"
+    };
+
+
+    /* =====================================================
+       INSTRUMENTOS EN PANTALLA
+    ===================================================== */
+
+    function actualizarInstrumentos() {
+
+      /* Fuente */
+
+      fuente.classList.toggle("apagada", !fuenteEncendida);
+
+      botonFuente.textContent = fuenteEncendida ? "ENCENDIDA" : "APAGADA";
+      botonFuente.classList.toggle("activo", fuenteEncendida);
+
+      textoVoltajeFuente.textContent = formatear(voltajeFuente, 0) + " V";
+
+      botonPolSup.classList.toggle("pos", polaridadSuperior > 0);
+      botonPolSup.classList.toggle("neg", polaridadSuperior < 0);
+      botonPolSup.querySelector("b").textContent =
+        polaridadSuperior > 0 ? "+" : "−";
+
+      botonPolInf.classList.toggle("pos", polaridadInferior > 0);
+      botonPolInf.classList.toggle("neg", polaridadInferior < 0);
+      botonPolInf.querySelector("b").textContent =
+        polaridadInferior > 0 ? "+" : "−";
+
+      /* Imán */
+
+      botonIman.textContent = imanEncendido ? "ENCENDIDO" : "APAGADO";
+      botonIman.classList.toggle("activo", imanEncendido);
+
+      iman.classList.toggle("encendido", imanEncendido);
+
+      /* Signo de carga visible sobre cada placa */
+
+      const cargas = [
+        [placaSuperior, polaridadSuperior],
+        [placaInferior, polaridadInferior]
+      ];
+
+      for (const [placa, signo] of cargas) {
+
+        placa.classList.toggle("carga-pos", signo > 0);
+        placa.classList.toggle("carga-neg", signo < 0);
+
+        for (const marca of placa.querySelectorAll(".signo")) {
+          marca.textContent = textoCarga(signo);
+        }
+
+      }
+
+      actualizarTextoSeleccion();
+
+      /* Vista del panel de mediciones */
+
+      botonFisica.classList.toggle("activo", modoFisico);
+      vistaSimple.classList.toggle("oculto", modoFisico);
+      vistaFisica.classList.toggle("oculto", !modoFisico);
+
+      document.getElementById("fis-titulo").textContent =
+        modoFisico ? "MEDICIONES · DATOS FÍSICOS" : "MEDICIONES";
+    }
+
+
+    function crearSignosPlacas() {
+
+      for (const placa of PLACAS) {
+        placa.innerHTML = '<i class="signo"></i>'.repeat(9);
+      }
+
+    }
+
+
+    function escribir(id, texto) {
+      document.getElementById(id).textContent = texto;
+    }
+
+
+    function actualizarHaz() {
+
+      voltajeFuente =
+        Math.round(((perillaPct / 100) * VOLTAJE_MAX_FUENTE) / 10) * 10;
+
+      voltajePlacas =
+        fuenteEncendida
+          ? (voltajeFuente * (polaridadSuperior - polaridadInferior)) / 2
+          : 0;
+
+      actualizarInstrumentos();
+
+      const haz = calcularHaz();
+
+      /* Dibujo del haz */
+
+      hazSvg.setAttribute("d", haz.trazado);
+
+      puntoImpacto.setAttribute("cx", haz.impacto.x);
+      puntoImpacto.setAttribute("cy", haz.impacto.y);
+      puntoImpacto.style.display = "block";
+
+      /* Mediciones físicas */
+
+      document.getElementById("fis-vacel").textContent =
+        formatear(VOLTAJE_ACELERADOR, 0) + " V";
+
+      document.getElementById("fis-v0").textContent =
+        formatear(VELOCIDAD_ELECTRONES / 1e7, 2) + " × 10⁷ m/s";
+
+      document.getElementById("fis-vplacas").textContent =
+        (voltajePlacas > 0 ? "+" : voltajePlacas < 0 ? "−" : "") +
+        formatear(Math.abs(voltajePlacas), 0) + " V";
+
+      document.getElementById("fis-d").textContent =
+        haz.separacion !== null
+          ? formatear(haz.separacion * 1000, 1) + " mm"
+          : "—";
+
+      document.getElementById("fis-e").textContent =
+        haz.campo !== null
+          ? formatear(Math.abs(haz.campo) / 1000, 1) + " kV/m"
+          : "—";
+
+      document.getElementById("fis-dim").textContent =
+        formatear(haz.distanciaIman * 1000, 1) + " mm";
+
+      document.getElementById("fis-b").textContent =
+        imanEncendido
+          ? formatear(haz.campoMagnetico * 1000, 2) + " mT"
+          : "0 (apagado)";
+
+      const hayEyB =
+        haz.campo !== null &&
+        Math.abs(haz.campo) > 0 &&
+        haz.campoMagnetico > 0;
+
+      document.getElementById("fis-eb").textContent =
+        hayEyB
+          ? formatear(Math.abs(haz.campo) / haz.campoMagnetico / 1e7, 2) +
+            " × 10⁷ m/s"
+          : "—";
+
+      const flecha =
+        haz.angulo > 0.05 ? " ↑" : haz.angulo < -0.05 ? " ↓" : "";
+
+      document.getElementById("fis-angulo").textContent =
+        formatear(Math.abs(haz.angulo), 1) + "°" + flecha;
+
+
+      /* Vista simple */
+
+      const cm = (metros) => formatear(metros * 100, 2) + " cm";
+
+      const cargaSup = document.getElementById("s-carga-sup");
+      const cargaInf = document.getElementById("s-carga-inf");
+
+      cargaSup.textContent =
+        polaridadSuperior > 0 ? "+ (positiva)" : "− (negativa)";
+      cargaSup.className = polaridadSuperior > 0 ? "txt-pos" : "txt-neg";
+
+      cargaInf.textContent =
+        polaridadInferior > 0 ? "+ (positiva)" : "− (negativa)";
+      cargaInf.className = polaridadInferior > 0 ? "txt-pos" : "txt-neg";
+
+      escribir(
+        "s-voltaje",
+        fuenteEncendida
+          ? formatear(voltajeFuente, 0) + " V"
+          : "fuente apagada"
+      );
+
+      escribir(
+        "s-dplacas",
+        haz.separacion !== null ? cm(haz.separacion) : "—"
+      );
+
+      escribir("s-iman", imanEncendido ? "encendido" : "apagado");
+
+      escribir("s-dim", cm(haz.distanciaIman));
+
+      escribir("s-angulo", formatear(Math.abs(haz.angulo), 1) + "°");
+
+      escribir(
+        "s-sentido",
+        Math.abs(haz.angulo) < 0.05
+          ? "el rayo va recto"
+          : haz.angulo > 0
+            ? "hacia arriba ↑"
+            : "hacia abajo ↓"
+      );
+
+
+      /* Mensaje de estado */
+
+      const mismaCarga =
+        fuenteEncendida && polaridadSuperior === polaridadInferior;
+
+      let mensaje;
+
+      if (modoFisico) {
+
+        mensaje = TEXTO_ESTADO[haz.estado];
+
+      } else if (mismaCarga && haz.estado === "recto") {
+
+        mensaje =
+          "Las dos placas tienen la misma carga: no hay campo eléctrico " +
+          "y el rayo va recto.";
+
+      } else {
+
+        mensaje = TEXTO_ESTADO_SIMPLE[haz.estado];
+
+        if (mismaCarga) {
+          mensaje += " (Las dos placas tienen la misma carga: no hay campo eléctrico.)";
+        }
+
+      }
+
+      escribir("fis-estado", mensaje);
+    }
+
+
+    /* Inicialización de la escena */
+
+    crearEscala();
+
+    crearSignosPlacas();
+
+    perilla.style.left = perillaPct + "%";
+
+    actualizarHaz();
+
+
+    /* =====================================================
+       MEDIAPIPE
+    ===================================================== */
+
+    const hands = new Hands({
+
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      }
+
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+
+    hands.onResults((results) => {
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+
+      /* =========================================
+         SIN MANO
+      ========================================= */
+
+      if (
+        !results.multiHandLandmarks ||
+        results.multiHandLandmarks.length === 0
+      ) {
+
+        gestureElement.textContent = "Esperando mano...";
+        distanceElement.textContent = "Distancia: --";
+
+        pinchActivo = false;
+        historialDistancias.length = 0;
+
+        soltarObjeto();
+
+        reiniciarHover();
+
+        procesarGestoPulgar(null);
+
+        procesarGestoPuno(false);
+
+        cursor.style.display = "none";
+
+        aplicarEstadoVisual();
+
+        return;
+      }
+
+
+      /* =========================================
+         LANDMARKS Y CURSOR
+      ========================================= */
+
+      const landmarks = results.multiHandLandmarks[0];
+
+      const indice = landmarks[8];
+      const pulgar = landmarks[4];
+
+      /*
+        CAMBIO PRINCIPAL:
+        el cursor se posiciona respecto de toda la página.
+        Esto permite llegar al botón del encabezado.
+      */
+
+      const posicion = posicionManoEnPagina(indice);
+
+      cursor.style.display = "block";
+      cursor.style.left = posicion.x + "px";
+      cursor.style.top = posicion.y + "px";
+
+
+      /* =========================================
+         PINCH (CON HISTÉRESIS)
+      ========================================= */
+
+      const distanciaSuave =
+        distanciaSuavizada(distancia(pulgar, indice));
+
+      distanceElement.textContent =
+        "Distancia: " + distanciaSuave.toFixed(3);
+
+      const pinchAnterior = pinchActivo;
+
+      if (!pinchActivo && distanciaSuave < PINCH_THRESHOLD) {
+        pinchActivo = true;
+      } else if (pinchActivo && distanciaSuave > RELEASE_THRESHOLD) {
+        pinchActivo = false;
+      }
+
+      const pinchInicio = pinchActivo && !pinchAnterior;
+
+      const estaSenalando = gestoSenalar(landmarks);
+
+      const gestoP = gestoPulgar(landmarks);
+
+      const puno = puñoCerrado(landmarks) && gestoP === null;
+
+
+      /* =========================================
+         LÓGICA PRINCIPAL
+      ========================================= */
+
+      if (objetoAgarrado !== null) {
+
+        if (pinchActivo) {
+          moverObjeto(landmarks);
+        } else {
+          soltarObjeto();
+        }
+
+      }
+
+      else if (
+        pinchInicio &&
+        objetoSeleccionado !== null &&
+        MOVIBLES.has(objetoSeleccionado) &&
+        gestoP === null &&
+        !puno
+      ) {
+
+        agarrarObjeto(landmarks);
+
+      }
+
+
+      /*
+        Selección y botones con ☝️:
+        la búsqueda incluye tanto el laboratorio como
+        los botones que están en el encabezado.
+      */
+
+      if (objetoAgarrado === null) {
+
+        if (estaSenalando && !pinchActivo) {
+
+          procesarSenalar(
+            elementoBajoCursor(posicion.x, posicion.y)
+          );
+
+        } else {
+
+          reiniciarHover();
+
+        }
+
+      }
+
+
+      /* Carga de las placas con 👍 / 👎 */
+
+      procesarGestoPulgar(objetoAgarrado === null ? gestoP : null);
+
+
+      /* Puño ✊ */
+
+      procesarGestoPuno(objetoAgarrado === null && puno);
+
+
+      /* =========================================
+         TEXTO DE ESTADO
+      ========================================= */
+
+      const placaSeleccionadaActiva =
+        objetoSeleccionado === placaSuperior ||
+        objetoSeleccionado === placaInferior;
+
+      if (objetoAgarrado !== null) {
+
+        gestureElement.textContent =
+          objetoAgarrado === fuente
+            ? "GESTO: AGARRANDO 🤏 — REGULANDO EL VOLTAJE"
+            : "GESTO: AGARRANDO 🤏";
+
+      } else if (gestoP !== null) {
+
+        gestureElement.textContent =
+          (gestoP === "arriba"
+            ? "GESTO: PULGAR ARRIBA 👍"
+            : "GESTO: PULGAR ABAJO 👎") +
+          (placaSeleccionadaActiva
+            ? " — CARGA " + (gestoP === "arriba" ? "+" : "−")
+            : " — SIN PLACA SELECCIONADA");
+
+      } else if (puno) {
+
+        gestureElement.textContent =
+          "GESTO: PUÑO ✊" +
+          (objetoSeleccionado === fuente
+            ? " — PRENDER / APAGAR LA FUENTE"
+            : objetoSeleccionado === iman
+              ? " — PRENDER / APAGAR EL IMÁN"
+              : " — SELECCIONÁ LA FUENTE O EL IMÁN");
+
+      } else if (pinchActivo) {
+
+        gestureElement.textContent =
+          objetoSeleccionado !== null
+            ? "GESTO: PINCH 🤏"
+            : "GESTO: PINCH 🤏 — SIN OBJETO SELECCIONADO";
+
+      } else if (estaSenalando) {
+
+        gestureElement.textContent = "GESTO: SELECCIONAR ☝️";
+
+      } else {
+
+        gestureElement.textContent = "GESTO: ABIERTO ✋";
+
+      }
+
+
+      /* =========================================
+         DIBUJAR LANDMARKS
+      ========================================= */
+
+      if (mostrarLandmarks) {
+
+        drawConnectors(
+          ctx,
+          landmarks,
+          HAND_CONNECTIONS,
+          { color: "#00FF00", lineWidth: 2 }
+        );
+
+        drawLandmarks(
+          ctx,
+          landmarks,
+          { color: "#FF0000", lineWidth: 1, radius: 3 }
+        );
+
+      }
+
+    });
+
+
+    /* =====================================================
+       CÁMARA
+    ===================================================== */
+
+    const camera = new Camera(video, {
+
+      onFrame: async () => {
+        await hands.send({ image: video });
+      },
+
+      width: 640,
+      height: 480
+
+    });
+
+    camera.start();
+
+    aplicarEstadoVisual();
+
+  </script>
+
+</body>
+</html>
